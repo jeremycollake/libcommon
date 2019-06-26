@@ -1,0 +1,17 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/libcommon/.vs/libcommon/v16/ipch
+*.opendb
+*.db
+*.suo
+*.tlog
+*.idb
+*.log
+*.obj
+*.pch
+*.pdb
+*.lib
+*.user
+*.filters
