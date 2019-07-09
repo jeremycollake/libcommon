@@ -1,13 +1,12 @@
 #pragma once
-
 /*
 * (c)2019 Jeremy Collake <jeremy@bitsum.com>
-* https://bitsum.com/portfolio/coreprio
+* https://bitsum.com
 * See LICENSE.TXT
 */
-#pragma once
 
 #include <map>
+// ATL::CString has built-in formatting and tokenization that std::string lacks, and this *is* Windows-centric code
 #include <atlstr.h>
 
 // registry access with local cache
@@ -18,19 +17,19 @@
 class ProductOptions
 {
 	HKEY hHive;
-	CString csKeyname;
+	ATL::CString csKeyname;
 
 	// map of options of various data types
-	std::map<CString, bool> mapBools;
-	std::map<CString, unsigned> mapuint32;
-	std::map<CString, unsigned long long> mapuint64;
-	std::map<CString, CString> mapstr;
+	std::map<ATL::CString, bool> mapBools;
+	std::map<ATL::CString, unsigned> mapuint32;
+	std::map<ATL::CString, unsigned long long> mapuint64;
+	std::map<ATL::CString, ATL::CString> mapstr;
 
 	// overloaded for specific data types
 	bool read_value(const WCHAR* pwszValueName, bool& bResult);
 	bool read_value(const WCHAR* pwszValueName, unsigned& nResult);
 	bool read_value(const WCHAR* pwszValueName, unsigned long long& nResult);
-	bool read_value(const WCHAR* pwszValueName, CString& csResult);
+	bool read_value(const WCHAR* pwszValueName, ATL::CString& csResult);
 
 	bool write_value(const WCHAR* pwszValueName, const bool bVal);
 	bool write_value(const WCHAR* pwszValueName, const unsigned nVal);
@@ -44,12 +43,14 @@ public:
 
 	// returns false if doesn't exist in registry
 	bool& operator[] (const WCHAR* pwszValueName);	// let boolvals (only) get referenced by subscript
-	bool get_value(const WCHAR* pwszValueName, bool bDefault=false);
-	BOOL get_value(const WCHAR* pwszValueName, BOOL bDefault=FALSE);
-	unsigned get_value(const WCHAR* pwszValueName, unsigned nDefault=0);
-	DWORD get_value(const WCHAR* pwszValueName, DWORD nDefault=0);
-	unsigned long long get_value(const WCHAR* pwszValueName, unsigned long long nDefault=0);
-	CString get_value(const WCHAR* pwszValueName, const WCHAR *pwszDefault=NULL);
+
+	// gets returns false if default used, otherwise true
+	bool get_value(const WCHAR* pwszValueName, bool& bVal, const bool bDefault=false);
+	bool get_value(const WCHAR* pwszValueName, BOOL& bVal, const BOOL bDefault=FALSE);
+	bool get_value(const WCHAR* pwszValueName, unsigned& nVal, const unsigned nDefault=0);
+	bool get_value(const WCHAR* pwszValueName, DWORD& nVal, const DWORD nDefault=0);
+	bool get_value(const WCHAR* pwszValueName, unsigned long long &nVal, const unsigned long long nDefault=0);
+	bool get_value(const WCHAR* pwszValueName, ATL::CString& csVal, const WCHAR *pwszDefault=NULL);
 
 	// returns false if registry write failed
 	bool set_value(const WCHAR* pwszValueName, const bool bVal);
