@@ -33,75 +33,79 @@ bool& ProductOptions::operator[] (const WCHAR* pwszValueName)
 	return mapBools[pwszValueName];
 }
 
-// returns false if doesn't exist in registry
-bool ProductOptions::get_value(const WCHAR* pwszValueName, bool& bVal)
+// returns default if doesn't exist in registry
+bool ProductOptions::get_value(const WCHAR* pwszValueName, bool bDefault)
 {
+	bool bVal = bDefault;
 	if (mapBools.find(pwszValueName) == mapBools.end())
 	{
 		if (read_value(pwszValueName, bVal))
 		{
-			mapBools[pwszValueName] = bVal;
-			return true;
+			// only update map if read was successful (forces try to re-read next get)
+			mapBools[pwszValueName] = bVal;			
 		}
-		return false;
+		return bVal;
 	}
 	bVal = mapBools[pwszValueName];
-	return true;
+	return bVal;
 }
 
-bool ProductOptions::get_value(const WCHAR* pwszValueName, BOOL& bVal)
+BOOL ProductOptions::get_value(const WCHAR* pwszValueName, BOOL bDefault)
 {
-	return get_value(pwszValueName, reinterpret_cast<bool&>(bVal));
+	return get_value(pwszValueName, static_cast<bool>(bDefault));
 }
 
-bool ProductOptions::get_value(const WCHAR* pwszValueName, unsigned& nVal)
+unsigned ProductOptions::get_value(const WCHAR* pwszValueName, unsigned nDefault)
 {
+	unsigned nVal = nDefault;
 	if (mapuint32.find(pwszValueName) == mapuint32.end())
 	{
 		if (read_value(pwszValueName, nVal))
 		{
-			mapuint32[pwszValueName] = nVal;
-			return true;
+			// only update map if read was successful (forces try to re-read next get)
+			mapuint32[pwszValueName] = nVal;			
 		}
-		return false;
+		return nVal;
 	}
 	nVal = mapuint32[pwszValueName];
-	return true;
+	return nVal;
 }
 
-bool ProductOptions::get_value(const WCHAR* pwszValueName, DWORD& bVal)
+DWORD ProductOptions::get_value(const WCHAR* pwszValueName, DWORD nDefault)
 {
-	return get_value(pwszValueName, reinterpret_cast<unsigned&>(bVal));
+	return get_value(pwszValueName, static_cast<unsigned>(nDefault));
 }
 
-bool ProductOptions::get_value(const WCHAR* pwszValueName, unsigned long long& nVal)
+unsigned long long ProductOptions::get_value(const WCHAR* pwszValueName, unsigned long long nDefault)
 {
+	unsigned long long nVal = nDefault;
 	if (mapuint64.find(pwszValueName) == mapuint64.end())
 	{
 		if (read_value(pwszValueName, nVal))
 		{
-			mapuint64[pwszValueName] = nVal;
-			return true;
+			// only update map if read was successful (forces try to re-read next get)
+			mapuint64[pwszValueName] = nVal;			
 		}
-		return false;
+		return nVal;
 	}
 	nVal = mapuint64[pwszValueName];
 	return true;
 }
 
-bool ProductOptions::get_value(const WCHAR* pwszValueName, CString& csVal)
+CString ProductOptions::get_value(const WCHAR* pwszValueName, const WCHAR *pwszDefault)
 {
+	CString csVal = pwszDefault;
 	if (mapstr.find(pwszValueName) == mapstr.end())
 	{
 		if (read_value(pwszValueName, csVal))
 		{
-			mapstr[pwszValueName] = csVal;
-			return true;
+			// only update map if read was successful (forces try to re-read next get)
+			mapstr[pwszValueName] = csVal;			
 		}
-		return false;
+		return csVal;
 	}
 	csVal = mapstr[pwszValueName];
-	return true;
+	return csVal;
 }
 
 // erasure from map forces reload next time get_value is called

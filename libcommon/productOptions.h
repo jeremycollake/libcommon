@@ -44,12 +44,12 @@ public:
 
 	// returns false if doesn't exist in registry
 	bool& operator[] (const WCHAR* pwszValueName);	// let boolvals (only) get referenced by subscript
-	bool get_value(const WCHAR* pwszValueName, bool& bVal);
-	bool get_value(const WCHAR* pwszValueName, BOOL& bVal);
-	bool get_value(const WCHAR* pwszValueName, unsigned& nVal);
-	bool get_value(const WCHAR* pwszValueName, DWORD& nVal);
-	bool get_value(const WCHAR* pwszValueName, unsigned long long& nVal);
-	bool get_value(const WCHAR* pwszValueName, CString& csVal);
+	bool get_value(const WCHAR* pwszValueName, bool bDefault=false);
+	BOOL get_value(const WCHAR* pwszValueName, BOOL bDefault=FALSE);
+	unsigned get_value(const WCHAR* pwszValueName, unsigned nDefault=0);
+	DWORD get_value(const WCHAR* pwszValueName, DWORD nDefault=0);
+	unsigned long long get_value(const WCHAR* pwszValueName, unsigned long long nDefault=0);
+	CString get_value(const WCHAR* pwszValueName, const WCHAR *pwszDefault=NULL);
 
 	// returns false if registry write failed
 	bool set_value(const WCHAR* pwszValueName, const bool bVal);
