@@ -155,12 +155,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="bitOperations.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="libCommon.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="productOptions.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="bitOperations.cpp" />
     <ClCompile Include="libcommon.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
