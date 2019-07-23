@@ -1,3 +1,8 @@
 #pragma once
 
-unsigned int CountBitsSet(unsigned long long mask);
+namespace bitOperations
+{
+	void unit_tests();
+
+	unsigned int CountBitsSet(unsigned long long mask);
+}
