@@ -9,7 +9,7 @@ void bitOperations::unit_tests()
 	_ASSERT(bitOperations::CountBitsSet(0xffffffffffffffff) == 64);
 }
 
-unsigned int bitOperations::CountBitsSet(unsigned long long mask)
+unsigned int bitOperations::CountBitsSet(const unsigned long long mask)
 {
 	unsigned int set_bits = 0;
 	for (unsigned int nI = 0; nI < sizeof(mask) * 8; nI++)
