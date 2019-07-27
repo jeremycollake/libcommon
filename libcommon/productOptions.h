@@ -13,6 +13,7 @@
 // ::get_value uses in-memory maps, filled dynamically as required by read_value
 // ::refresh forces reload of maps on next get of each option
 // ::write_value writes directly and updates map
+// ::delete_value removes value from backing store (registry hive)
 
 class ProductOptions
 {
@@ -59,4 +60,6 @@ public:
 	bool set_value(const WCHAR* pwszValueName, const DWORD nVal);
 	bool set_value(const WCHAR* pwszValueName, const unsigned long long nVal);
 	bool set_value(const WCHAR* pwszValueName, const WCHAR* val);
+
+	bool delete_value(const WCHAR* pwszValueName);
 };

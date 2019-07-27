@@ -326,3 +326,22 @@ bool ProductOptions::write_value(const WCHAR* pwszValueName, const WCHAR* val)
 
 	return bRet;
 }
+
+bool ProductOptions::delete_value(const WCHAR* pwszValueName)
+{
+	bool bR = false;
+	HKEY hKey;
+	DWORD dwDispo = 0;
+
+	if (RegCreateKeyEx(hHive,
+		csKeyname.GetBuffer(),
+		0, NULL, 0, KEY_SET_VALUE, NULL, &hKey, &dwDispo) == ERROR_SUCCESS)
+	{
+		if (RegDeleteValue(hKey, pwszValueName) == ERROR_SUCCESS)
+		{
+			bR = true;
+		}
+		RegCloseKey(hKey);
+	}
+	return bR;
+}
