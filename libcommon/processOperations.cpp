@@ -37,7 +37,6 @@ bool processOperations::TrimWorkingSetSize(const unsigned long pid)
 	return bR;
 }
 
-
 // returns true if process terminates, or is already terminated
 bool processOperations::Terminate(const unsigned long pid, const unsigned long exitCode)
 {
