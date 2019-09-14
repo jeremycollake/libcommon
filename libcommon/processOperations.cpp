@@ -30,7 +30,7 @@ bool processOperations::SetPriorityClass(const unsigned long pid, const long pri
 
 bool processOperations::TrimWorkingSetSize(const unsigned long pid)
 {
-	HANDLE hProcess = OpenProcess(PROCESS_SET_INFORMATION, FALSE, pid);
+	HANDLE hProcess = OpenProcess(PROCESS_SET_QUOTA, FALSE, pid);
 	if (NULL == hProcess) return false;
 	bool bR = ::SetProcessWorkingSetSize(hProcess, -1, -1) ? true : false;
 	CloseHandle(hProcess);
