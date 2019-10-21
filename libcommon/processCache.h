@@ -8,7 +8,7 @@ class ProcessCache
 	std::mutex prot;
 	std::map<unsigned int, double> mapCPUUse;
 public:
-	bool add_CPUUse(const unsigned int pid, const double cpuUse)
+	void add_CPUUse(const unsigned int pid, const double cpuUse)
 	{
 		std::lock_guard<std::mutex> lock(prot);
 		mapCPUUse[pid] = cpuUse;
