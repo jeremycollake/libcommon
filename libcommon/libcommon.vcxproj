@@ -159,8 +159,13 @@
     <ClInclude Include="framework.h" />
     <ClInclude Include="libCommon.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="processCache.h" />
     <ClInclude Include="processOperations.h" />
     <ClInclude Include="productOptions.h" />
+    <ClInclude Include="win32-darkmode\win32-darkmode\DarkMode.h" />
+    <ClInclude Include="win32-darkmode\win32-darkmode\IatHook.h" />
+    <ClInclude Include="win32-darkmode\win32-darkmode\ListViewUtil.h" />
+    <ClInclude Include="win32-darkmode\win32-darkmode\win32-darkmode.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="bitOperations.cpp" />
@@ -173,6 +178,8 @@
     </ClCompile>
     <ClCompile Include="processOperations.cpp" />
     <ClCompile Include="productOptions.cpp" />
+    <ClCompile Include="win32-darkmode\win32-darkmode\darkmode.cpp" />
+    <ClCompile Include="win32-darkmode\win32-darkmode\IatHook.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
