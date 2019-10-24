@@ -97,7 +97,7 @@ void FixDarkScrollBar()
 	}
 }
 
-void InitDarkMode()
+void InitDarkMode(bool bAllowFutureWin10Builds_Unsafe)
 {	
 	fnRtlGetNtVersionNumbers RtlGetNtVersionNumbers = reinterpret_cast<fnRtlGetNtVersionNumbers>(GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "RtlGetNtVersionNumbers"));
 	if (RtlGetNtVersionNumbers)
@@ -105,7 +105,7 @@ void InitDarkMode()
 		DWORD major, minor;
 		RtlGetNtVersionNumbers(&major, &minor, &g_buildNumber);
 		g_buildNumber &= ~0xF0000000;
-		if (major == 10 && minor == 0 && 17763 <= g_buildNumber && g_buildNumber <= 18363) // Windows 10 1809 10.0.17763 - 1909 10.0.18363
+		if (major == 10 && minor == 0 && 17763 <= g_buildNumber && (g_buildNumber <= 18363 || bAllowFutureWin10Builds_Unsafe)) // Windows 10 1809 10.0.17763 - 1909 10.0.18363
 		{
 			HMODULE hUxtheme = LoadLibraryExW(L"uxtheme.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
 			if (hUxtheme)
