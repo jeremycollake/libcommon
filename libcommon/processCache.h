@@ -1,12 +1,12 @@
 #pragma once
 
-#include <map>
+#include <unordered_map>
 #include <mutex>
 
 class ProcessCache
 {	
 	std::mutex prot;
-	std::map<unsigned int, double> mapCPUUse;
+	std::unordered_map<unsigned int, double> mapCPUUse;
 public:
 	void add_CPUUse(const unsigned int pid, const double cpuUse)
 	{
