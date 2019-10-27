@@ -2,10 +2,10 @@
 
 struct SubclassInfo
 {
-	COLORREF headerTextColor;
+	COLORREF colorHeaderText;	
 };
 
-void InitListView(HWND hListView)
+void InitListView(const HWND hListView, const int subclassId)
 {
 	HWND hHeader = ListView_GetHeader(hListView);
 
@@ -14,34 +14,35 @@ void InitListView(HWND hListView)
 		SetWindowSubclass(hListView, [](HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR /*uIdSubclass*/, DWORD_PTR dwRefData) -> LRESULT {
 			switch (uMsg)
 			{
-			case WM_NOTIFY:
+			case WM_NOTIFY:			
 			{
-				if (reinterpret_cast<LPNMHDR>(lParam)->code == NM_CUSTOMDRAW)
+				if (g_darkModeEnabled)
 				{
-					LPNMCUSTOMDRAW nmcd = reinterpret_cast<LPNMCUSTOMDRAW>(lParam);
-					switch (nmcd->dwDrawStage)
+					if (reinterpret_cast<LPNMHDR>(lParam)->code == NM_CUSTOMDRAW)
 					{
-					case CDDS_PREPAINT:
-						return CDRF_NOTIFYITEMDRAW;
-					case CDDS_ITEMPREPAINT:
-					{
-						auto info = reinterpret_cast<SubclassInfo*>(dwRefData);
-						SetTextColor(nmcd->hdc, info->headerTextColor);
-						return CDRF_DODEFAULT;
-					}
+						LPNMCUSTOMDRAW nmcd = reinterpret_cast<LPNMCUSTOMDRAW>(lParam);
+						switch (nmcd->dwDrawStage)
+						{
+						case CDDS_PREPAINT:
+							return CDRF_NOTIFYITEMDRAW;
+						case CDDS_ITEMPREPAINT:
+						{
+							auto info = reinterpret_cast<SubclassInfo*>(dwRefData);
+							SetTextColor(nmcd->hdc, info->colorHeaderText);
+							return CDRF_DODEFAULT;
+						}
+						}
 					}
 				}
 			}
 			break;
 			case WM_THEMECHANGED:
 			{
-				if (g_darkModeSupported)
-				{
-					HWND hHeader = ListView_GetHeader(hWnd);
-
-					AllowDarkModeForWindow(hWnd, g_darkModeEnabled);
-					AllowDarkModeForWindow(hHeader, g_darkModeEnabled);
-
+				HWND hHeader = ListView_GetHeader(hWnd);
+				AllowDarkModeForWindow(hWnd, g_darkModeEnabled);
+				AllowDarkModeForWindow(hHeader, g_darkModeEnabled);
+				if (g_darkModeEnabled)
+				{										
 					HTHEME hTheme = OpenThemeData(nullptr, L"ItemsView");
 					if (hTheme)
 					{
@@ -57,19 +58,16 @@ void InitListView(HWND hListView)
 						}
 						CloseThemeData(hTheme);
 					}
-
 					hTheme = OpenThemeData(hHeader, L"Header");
 					if (hTheme)
 					{
 						auto info = reinterpret_cast<SubclassInfo*>(dwRefData);
-						GetThemeColor(hTheme, HP_HEADERITEM, 0, TMT_TEXTCOLOR, &(info->headerTextColor));
+						GetThemeColor(hTheme, HP_HEADERITEM, 0, TMT_TEXTCOLOR, &(info->colorHeaderText));
 						CloseThemeData(hTheme);
-					}
-
-					SendMessageW(hHeader, WM_THEMECHANGED, wParam, lParam);
-
-					RedrawWindow(hWnd, nullptr, nullptr, RDW_FRAME | RDW_INVALIDATE);
+					}										
 				}
+				SendMessageW(hHeader, WM_THEMECHANGED, wParam, lParam);
+				RedrawWindow(hWnd, nullptr, nullptr, RDW_FRAME | RDW_INVALIDATE);
 			}
 			break;
 			case WM_DESTROY:

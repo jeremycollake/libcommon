@@ -83,7 +83,7 @@ void FixDarkScrollBar()
 		if (VirtualProtect(addr, sizeof(IMAGE_THUNK_DATA), PAGE_READWRITE, &oldProtect))
 		{
 			auto MyOpenThemeData = [](HWND hWnd, LPCWSTR classList) -> HTHEME {
-				if (wcscmp(classList, L"ScrollBar") == 0)
+				if (g_darkModeEnabled && wcscmp(classList, L"ScrollBar") == 0)
 				{
 					hWnd = nullptr;
 					classList = L"Explorer::ScrollBar";
