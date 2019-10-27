@@ -81,7 +81,7 @@ void InitListView(const HWND hListView, const int subclassId)
 		}, 0, reinterpret_cast<DWORD_PTR>(new SubclassInfo{}));
 	}
 
-	ListView_SetExtendedListViewStyle(hListView, LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER | LVS_EX_HEADERDRAGDROP);
+	//ListView_SetExtendedListViewStyle(hListView, LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER | LVS_EX_HEADERDRAGDROP);
 
 	// Hide focus dots
 	SendMessage(hListView, WM_CHANGEUISTATE, MAKELONG(UIS_SET, UISF_HIDEFOCUS), 0);
