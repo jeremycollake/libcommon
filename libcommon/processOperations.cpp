@@ -41,11 +41,33 @@ bool processOperations::TrimWorkingSetSize(const unsigned long pid)
 bool processOperations::Terminate(const unsigned long pid, const unsigned long exitCode)
 {
 	HANDLE hProcess = OpenProcess(SYNCHRONIZE | PROCESS_TERMINATE, FALSE, pid);
-	if (NULL == hProcess) return true;  // return successful
-	
+	if (NULL == hProcess) return true;  // return successful	
 	::TerminateProcess(hProcess, exitCode);
-
 	bool bR = (WaitForSingleObject(hProcess, 0) == WAIT_OBJECT_0) ? true : false;
+	CloseHandle(hProcess);
+	return bR;
+}
+
+bool processOperations::SuspendProcess(const unsigned long pid)
+{
+	HANDLE hProcess = OpenProcess(PROCESS_SUSPEND_RESUME, FALSE, pid);
+	if (NULL == hProcess) return false;  // return successful
+	auto pfnNtSuspendProcess = reinterpret_cast<NtSuspendProcess>(GetProcAddress(
+		GetModuleHandle(L"ntdll"), "NtSuspendProcess"));
+	if (!pfnNtSuspendProcess) return false;
+	bool bR = pfnNtSuspendProcess(hProcess) ? false : true;
+	CloseHandle(hProcess);
+	return bR;
+}
+
+bool processOperations::ResumeProcess(const unsigned long pid)
+{
+	HANDLE hProcess = OpenProcess(PROCESS_SUSPEND_RESUME, FALSE, pid);
+	if (NULL == hProcess) return false;  // return successful
+	auto pfnNtResumeProcess = reinterpret_cast<NtResumeProcess>(GetProcAddress(
+		GetModuleHandle(L"ntdll"), "NtResumeProcess"));
+	if (NULL == pfnNtResumeProcess) return false;
+	bool bR = pfnNtResumeProcess(hProcess) ? false : true;
 	CloseHandle(hProcess);
 	return bR;
 }
