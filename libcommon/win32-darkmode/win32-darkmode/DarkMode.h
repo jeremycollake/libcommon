@@ -59,4 +59,4 @@ bool IsColorSchemeChangeMessage(LPARAM lParam);
 bool IsColorSchemeChangeMessage(UINT message, LPARAM lParam);
 void AllowDarkModeForApp(bool allow);
 void FixDarkScrollBar();
-void InitDarkMode(bool bAllowFutureWin10Builds_Unsafe = false);
+void InitDarkMode(const bool bAllowFutureWin10Builds_Unsafe = false);
