@@ -29,25 +29,36 @@ public:
 	{
 		hImageList = ImageList_Create(16, 16, ILC_COLOR32, 1, _Imagelist_MaxSize);
 		_ASSERT(hImageList);
+		bool bNeedsUnload = false;
 		// index 0 will always be fail-safe icon		
 		if (NULL == hIconFailsafe)
 		{
+			ICON_DEBUG_PRINT(L"No failsafe icon supplied, inferring icon");
 			WCHAR wszServiceHostPath[MAX_PATH * 2] = { 0 };
 			GetSystemDirectory(wszServiceHostPath, _countof(wszServiceHostPath));
 			ATL::CString csSvcHostPath;
 			csSvcHostPath.Format(L"%s\\svchost.exe", wszServiceHostPath);
-			hIconFailsafe = GetIconForFilename(csSvcHostPath);			
+			hIconFailsafe = GetIconForFilename(csSvcHostPath);	
+			bNeedsUnload = true;
 		}
 		_ASSERT(hIconFailsafe);
 		ImageList_AddIcon(hImageList, hIconFailsafe);
-		if (hIconFailsafe)
+		if (hIconFailsafe && bNeedsUnload)
 		{
 			DestroyIcon(hIconFailsafe);
 		}
-	}
+	}	
 	~ProcessIconImageList()
 	{
 		ImageList_Destroy(hImageList);
+	}
+	void SetFailsafeIcon(HICON hIcon)
+	{
+		_ASSERT(hIcon && hImageList);
+		if (hIcon)
+		{
+			ImageList_ReplaceIcon(hImageList, 0, hIcon);
+		}
 	}
 	HIMAGELIST GetImageList()
 	{
