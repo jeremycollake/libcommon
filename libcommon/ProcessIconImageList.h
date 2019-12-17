@@ -1,7 +1,10 @@
 #pragma once
 
+#include <windows.h>
+#include <commctrl.h>
 #include <shellapi.h>
 #include <atlstr.h>
+#include <map>
 #include <set>
 #include <mutex>
 #include "DebugOutToggles.h"
