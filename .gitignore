@@ -15,4 +15,5 @@
 *.lib
 *.user
 *.filters
-/libcommon/Release/libcommon.vcxproj.FileListAbsolute.txt
+*.FileListAbsolute.txt
+*.FileListAbsolute.txt
