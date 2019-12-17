@@ -156,8 +156,12 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="bitOperations.h" />
+    <ClInclude Include="DbgPrintf.h" />
+    <ClInclude Include="DebugOutToggles.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="libCommon.h" />
+    <ClInclude Include="ProcessIconImageList.h" />
+    <ClInclude Include="ParentProcessChain.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="processCache.h" />
     <ClInclude Include="processOperations.h" />
@@ -170,7 +174,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="bitOperations.cpp" />
+    <ClCompile Include="DbgPrintf.cpp" />
     <ClCompile Include="libcommon.cpp" />
+    <ClCompile Include="ParentProcessChain.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>

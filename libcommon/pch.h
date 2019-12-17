@@ -9,16 +9,6 @@
 
 // add headers that you want to pre-compile here
 #include "framework.h"
-#include <map>
-#include <climits>
-#include <cstdint>
-
-#include <Windows.h>
-#include <CommCtrl.h>
-#include <Uxtheme.h>
-#include <WindowsX.h>
-#include <Dwmapi.h>
-#include <Vssym32.h>
 
 #pragma comment(lib, "Comctl32.lib")
 #pragma comment(lib, "Uxtheme.lib")
