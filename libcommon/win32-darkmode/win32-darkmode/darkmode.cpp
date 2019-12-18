@@ -105,8 +105,8 @@ void InitDarkMode(const bool bAllowFutureWin10Builds_Unsafe)
 		DWORD major, minor;
 		RtlGetNtVersionNumbers(&major, &minor, &g_buildNumber);
 		g_buildNumber &= ~0xF0000000;
-#define LAST_VERIFIED_SUPPORTED_DARKMODE_WIN10_BUILD 19037
-#define BUILD_ALLOWABLE_MARGIN 10		// max build # over last known supported
+#define LAST_VERIFIED_SUPPORTED_DARKMODE_WIN10_BUILD 19536
+#define BUILD_ALLOWABLE_MARGIN 50		// max build # over last known supported
 		if (major == 10 && minor == 0 && 17763 <= g_buildNumber && (g_buildNumber <= (LAST_VERIFIED_SUPPORTED_DARKMODE_WIN10_BUILD + BUILD_ALLOWABLE_MARGIN) || bAllowFutureWin10Builds_Unsafe)) // Windows 10 1809 10.0.17763 - 1909 10.0.18363
 		{
 			HMODULE hUxtheme = LoadLibraryExW(L"uxtheme.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
