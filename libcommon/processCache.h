@@ -15,6 +15,7 @@ public:
 private:
 	std::mutex prot;
 	std::unordered_map<unsigned int, double> mapCPUUse;
+	std::unordered_map<unsigned int, double> mapAverageCPU;
 	std::unordered_map<unsigned int, unsigned __int64> mapPrivateWorkingSet;
 	std::unordered_map<unsigned int, unordered_map<valueName, unsigned long>> mapNamedULONGs;
 	std::unordered_map<unsigned int, unordered_map<valueName, unsigned __int64>> mapNamedULONGLONGs;
@@ -23,9 +24,10 @@ public:
 	{
 		std::lock_guard<std::mutex> lock(prot);
 		mapCPUUse.erase(pid);
+		mapAverageCPU.erase(pid);
 		mapPrivateWorkingSet.erase(pid);
 		mapNamedULONGs.erase(pid);
-		mapNamedULONGLONGs.erase(pid);
+		mapNamedULONGLONGs.erase(pid);		
 	}
 
 	void add_CPUUse(const unsigned int pid, const double cpuUse)
@@ -45,6 +47,26 @@ public:
 			return false;
 		}
 		cpuUse = i->second;
+		return true;
+	}
+
+	void add_AverageCPU(const unsigned int pid, const double cpu)
+	{
+		std::lock_guard<std::mutex> lock(prot);
+		mapAverageCPU[pid] = cpu;
+		// a safety catch for infinite growth (client didn't call erase)
+		_ASSERT(mapAverageCPU.size() < 1000);
+	}
+	bool get_AverageCPU(const unsigned int pid, double& cpu)
+	{
+		std::lock_guard<std::mutex> lock(prot);
+		auto i = mapAverageCPU.find(pid);
+		if (i == mapAverageCPU.end())
+		{
+			cpu = 0;
+			return false;
+		}
+		cpu = i->second;
 		return true;
 	}
 
