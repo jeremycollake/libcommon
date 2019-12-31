@@ -1,6 +1,6 @@
 #pragma once
 /*
-* (c)2019 Jeremy Collake <jeremy@bitsum.com>
+* (c)2020 Jeremy Collake <jeremy@bitsum.com>
 * https://bitsum.com
 * See LICENSE.TXT
 */
