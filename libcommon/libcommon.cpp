@@ -5,6 +5,27 @@
 #include "framework.h"
 #include "libCommon.h"
 
+void ListView_SetSingleSelection(const HWND hWndListview, const int nIndex)
+{
+	ListView_UnselectAll(hWndListview);
+	ListView_EnsureVisible(hWndListview, nIndex, FALSE);	
+	ListView_SetItemState(hWndListview, nIndex, LVIS_FOCUSED | LVIS_SELECTED, LVIS_FOCUSED | LVIS_SELECTED);	
+	ListView_SetSelectionMark(hWndListview, nIndex);
+}
+
+void ListView_UnselectAll(const HWND hWndListview)
+{
+	int nSearchPos = -1;
+	do
+	{
+		nSearchPos = ListView_GetNextItem(hWndListview, nSearchPos, LVNI_ALL);
+		if (nSearchPos != -1)
+		{
+			ListView_SetItemState(hWndListview, nSearchPos, 0, LVIS_FOCUSED | LVIS_SELECTED);
+		}
+	} while (nSearchPos != -1);	
+}
+
 DWORD GetWindows10Build()
 {
 	DWORD dwBulldNum = 0;

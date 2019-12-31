@@ -1,5 +1,8 @@
 #pragma once
 
+void ListView_SetSingleSelection(const HWND hWndListview, const int nIndex);
+void ListView_UnselectAll(const HWND hWndListview);
+
 using fnRtlGetNtVersionNumbers = void (WINAPI*)(LPDWORD major, LPDWORD minor, LPDWORD build);
 
 // returns 0 if not Windows 10
