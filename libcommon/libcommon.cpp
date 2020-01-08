@@ -26,6 +26,17 @@ void ListView_UnselectAll(const HWND hWndListview)
 	} while (nSearchPos != -1);	
 }
 
+bool IsFileWritable(const WCHAR *pwszFilepath)
+{
+	HANDLE hFile = CreateFile(pwszFilepath, GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+	if (hFile != INVALID_HANDLE_VALUE)
+	{
+		CloseHandle(hFile);
+		return true;
+	}
+	return false;
+}
+
 DWORD GetWindows10Build()
 {
 	DWORD dwBulldNum = 0;
@@ -40,6 +51,24 @@ DWORD GetWindows10Build()
 		}		
 	}	
 	return dwBulldNum;
+}
+
+// for appending backslash or forward-slash only if missing
+void AppendCharacterIfMissing(ATL::CString& csStr, const WCHAR wChar)
+{
+	int nLen = csStr.GetLength();
+	bool bNeedsAppend = true;
+	if (nLen)
+	{
+		if (csStr[nLen - 1] == wChar)
+		{
+			bNeedsAppend = false;
+		}
+	}
+	if (bNeedsAppend)
+	{
+		csStr += wChar;
+	}
 }
 
 bool wildcmpEx(const TCHAR* wild, const TCHAR* str) {
