@@ -1,7 +1,9 @@
 // from https://github.com/ysc3839/win32-darkmode.git
 #include "pch.h"
+#include <windows.h>
 #include "darkmode.h"
 
+fnSetWindowCompositionAttribute _SetWindowCompositionAttribute = nullptr;
 fnShouldAppsUseDarkMode _ShouldAppsUseDarkMode = nullptr;
 fnAllowDarkModeForWindow _AllowDarkModeForWindow = nullptr;
 fnAllowDarkModeForApp _AllowDarkModeForApp = nullptr;
@@ -10,9 +12,8 @@ fnRefreshImmersiveColorPolicyState _RefreshImmersiveColorPolicyState = nullptr;
 fnIsDarkModeAllowedForWindow _IsDarkModeAllowedForWindow = nullptr;
 fnGetIsImmersiveColorUsingHighContrast _GetIsImmersiveColorUsingHighContrast = nullptr;
 fnOpenNcThemeData _OpenNcThemeData = nullptr;
-// Insider 18290
+// 1903 18362
 fnShouldSystemUseDarkMode _ShouldSystemUseDarkMode = nullptr;
-// Insider 18334
 fnSetPreferredAppMode _SetPreferredAppMode = nullptr;
 
 bool g_darkModeSupported = false;
@@ -44,7 +45,13 @@ void RefreshTitleBarThemeColor(HWND hWnd)
 	{
 		dark = TRUE;
 	}
-	DwmSetWindowAttribute(hWnd, 19, &dark, sizeof(dark));
+	if (g_buildNumber < 18362)
+		SetPropW(hWnd, L"UseImmersiveDarkModeColors", reinterpret_cast<HANDLE>(static_cast<INT_PTR>(dark)));
+	else if (_SetWindowCompositionAttribute)
+	{
+		WINDOWCOMPOSITIONATTRIBDATA data = { WCA_USEDARKMODECOLORS, &dark, sizeof(dark) };
+		_SetWindowCompositionAttribute(hWnd, &data);
+	}	
 }
 
 bool IsColorSchemeChangeMessage(LPARAM lParam)
@@ -76,25 +83,36 @@ void AllowDarkModeForApp(bool allow)
 
 void FixDarkScrollBar()
 {
-	auto addr = FindDelayLoadThunkInModule(GetModuleHandleW(L"comctl32.dll"), "uxtheme.dll", 49); // OpenNcThemeData
-	if (addr)
+	HMODULE hComctl = LoadLibraryExW(L"comctl32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+	if (hComctl)
 	{
-		DWORD oldProtect;
-		if (VirtualProtect(addr, sizeof(IMAGE_THUNK_DATA), PAGE_READWRITE, &oldProtect))
+		auto addr = FindDelayLoadThunkInModule(hComctl, "uxtheme.dll", 49); // OpenNcThemeData
+		if (addr)
 		{
-			auto MyOpenThemeData = [](HWND hWnd, LPCWSTR classList) -> HTHEME {
-				if (g_darkModeEnabled && wcscmp(classList, L"ScrollBar") == 0)
-				{
-					hWnd = nullptr;
-					classList = L"Explorer::ScrollBar";
-				}
-				return _OpenNcThemeData(hWnd, classList);
-			};
+			DWORD oldProtect;
+			if (VirtualProtect(addr, sizeof(IMAGE_THUNK_DATA), PAGE_READWRITE, &oldProtect))
+			{
+				auto MyOpenThemeData = [](HWND hWnd, LPCWSTR classList) -> HTHEME {
+					if (wcscmp(classList, L"ScrollBar") == 0)
+					{
+						hWnd = nullptr;
+						classList = L"Explorer::ScrollBar";
+					}
+					return _OpenNcThemeData(hWnd, classList);
+				};
 
-			addr->u1.Function = reinterpret_cast<ULONG_PTR>(static_cast<fnOpenNcThemeData>(MyOpenThemeData));
-			VirtualProtect(addr, sizeof(IMAGE_THUNK_DATA), oldProtect, &oldProtect);
+				addr->u1.Function = reinterpret_cast<ULONG_PTR>(static_cast<fnOpenNcThemeData>(MyOpenThemeData));
+				VirtualProtect(addr, sizeof(IMAGE_THUNK_DATA), oldProtect, &oldProtect);
+			}
 		}
 	}
+}
+
+constexpr bool CheckBuildNumber(DWORD buildNumber)
+{
+	return (buildNumber == 17763 || // 1809
+		buildNumber == 18362 || // 1903
+		buildNumber == 18363); // 1909
 }
 
 void InitDarkMode(const bool bAllowFutureWin10Builds_Unsafe)
@@ -119,13 +137,15 @@ void InitDarkMode(const bool bAllowFutureWin10Builds_Unsafe)
 				_AllowDarkModeForWindow = reinterpret_cast<fnAllowDarkModeForWindow>(GetProcAddress(hUxtheme, MAKEINTRESOURCEA(133)));
 
 				auto ord135 = GetProcAddress(hUxtheme, MAKEINTRESOURCEA(135));
-				if (g_buildNumber < 18334)
+				if (g_buildNumber < 18362)
 					_AllowDarkModeForApp = reinterpret_cast<fnAllowDarkModeForApp>(ord135);
 				else
 					_SetPreferredAppMode = reinterpret_cast<fnSetPreferredAppMode>(ord135);
 
 				//_FlushMenuThemes = reinterpret_cast<fnFlushMenuThemes>(GetProcAddress(hUxtheme, MAKEINTRESOURCEA(136)));
 				_IsDarkModeAllowedForWindow = reinterpret_cast<fnIsDarkModeAllowedForWindow>(GetProcAddress(hUxtheme, MAKEINTRESOURCEA(137)));
+
+				_SetWindowCompositionAttribute = reinterpret_cast<fnSetWindowCompositionAttribute>(GetProcAddress(GetModuleHandleW(L"user32.dll"), "SetWindowCompositionAttribute"));
 
 				if (_OpenNcThemeData &&
 					_RefreshImmersiveColorPolicyState &&
