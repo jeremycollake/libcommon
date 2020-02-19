@@ -12,7 +12,5 @@
 
 #pragma comment(lib, "Comctl32.lib")
 #pragma comment(lib, "Uxtheme.lib")
-#pragma comment(lib, "Dwmapi.lib")
-
 
 #endif //PCH_H
