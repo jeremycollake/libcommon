@@ -7,6 +7,7 @@
 #include <cstdint>
 
 #include <Windows.h>
+#include <bcrypt.h>
 #include <CommCtrl.h>
 #include <Uxtheme.h>
 #include <WindowsX.h>
