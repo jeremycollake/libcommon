@@ -19,3 +19,5 @@ bool wildcmpEx(const TCHAR* wild, const TCHAR* str);
 bool wildicmpEx(const TCHAR* wild, const TCHAR* str);
 #define wildcmp wildcmpEx
 #define wildcmpi wildicmpEx
+
+BOOL IsElevated();

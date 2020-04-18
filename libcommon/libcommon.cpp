@@ -240,3 +240,24 @@ bool wildicmpEx(const TCHAR* wild, const TCHAR* str) {
 
 	return s >= slen ? true : false;
 }
+
+// source: https://stackoverflow.com/a/8196291/191514
+BOOL IsElevated()
+{
+	BOOL fRet = FALSE;
+	HANDLE hToken = NULL;
+	if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken)) 
+	{
+		TOKEN_ELEVATION Elevation;
+		DWORD cbSize = sizeof(TOKEN_ELEVATION);
+		if (GetTokenInformation(hToken, TokenElevation, &Elevation, sizeof(Elevation), &cbSize)) 
+		{
+			fRet = Elevation.TokenIsElevated;
+		}
+	}
+	if (hToken) 
+	{
+		CloseHandle(hToken);
+	}
+	return fRet;
+}
