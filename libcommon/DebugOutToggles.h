@@ -2,10 +2,10 @@
 
 #include "DbgPrintf.h"
 
-//#define PL_SHOW_ICON_DEBUG_PRINT
+//#define ENABLE_DEBUG_OUTPUT
 
-#ifdef PL_SHOW_ICON_DEBUG_PRINT
-#define ICON_DEBUG_PRINT(LPCTSTR, ...) DbgPrintf(LPCTSTR, __VA_ARGS__)
+#ifdef ENABLE_DEBUG_OUTPUT
+#define LIBCOMMON_DEBUG_PRINT(LPCTSTR, ...) DbgPrintf(LPCTSTR, __VA_ARGS__)
 #else
-#define ICON_DEBUG_PRINT(LPCTSTR, ...)
+#define LIBCOMMON_DEBUG_PRINT(LPCTSTR, ...)
 #endif

@@ -1,5 +1,6 @@
 #pragma once
 #include <windows.h>
+#include <tlhelp32.h>
 #include <vector>
 
 typedef LONG(NTAPI* NtSuspendProcess)(IN HANDLE ProcessHandle);
@@ -31,6 +32,7 @@ public:
 	// get processor groups for a process
 	size_t GetProcessProcessorGroups(const unsigned long pid, std::vector<USHORT>& vGroups);
 	bool IsMultiGroupProcess(const unsigned long pid);
+	bool SetGroupAffinityForAllThreads(const unsigned long pid, const int group, const unsigned long long bitMask);
 
 	bool SetPriorityBoost(const unsigned long pid, const bool bPriorityBoostEnabled);
 	bool SetPriorityClass(const unsigned long pid, const long priorityClass);

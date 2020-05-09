@@ -13,12 +13,69 @@ bool processOperations::SetAffinityMask(const unsigned long pid, const unsigned 
 	}
 	else
 	{
+		// if process is multi-group, first try to move its threads to the target group
+		if (IsMultiGroupProcess(pid))
+		{
+			SetGroupAffinityForAllThreads(pid, group, bitMask);
+		}
+		// must call SetProcessGroupAffinity as well to change default group (not that it works for new threads)
 		// use NT native API to set group and affinity
-		bR = SetProcessGroupAffinity(pid, group, bitMask);
+		bR = SetProcessGroupAffinity(pid, group, bitMask);					
 		// backup safety, unnecessary
 		::SetProcessAffinityMask(hProcess, bitMask);
 	}
 	CloseHandle(hProcess);
+	return bR;
+}
+
+bool processOperations::SetGroupAffinityForAllThreads(const unsigned long pid, const int group, const unsigned long long bitMask)
+{
+	//LIBCOMMON_DEBUG_PRINT(L"SetGroupAffinityForAllThreads");
+	HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+	if (hSnapshot == INVALID_HANDLE_VALUE)
+	{		
+		LIBCOMMON_DEBUG_PRINT(L"ERROR: Snapshot failure");
+		return false;
+	}
+
+	bool bR = true;	
+	THREADENTRY32 te32;
+	te32.dwSize = sizeof(THREADENTRY32);
+	if (!Thread32First(hSnapshot, &te32))
+	{
+		CloseHandle(hSnapshot);
+		return false;
+	}
+	do
+	{
+		if (te32.th32OwnerProcessID == pid)
+		{
+			//LIBCOMMON_DEBUG_PRINT(L"Adjusting affinity of TID %u", te32.th32ThreadID);
+			HANDLE hThread = OpenThread(THREAD_SET_INFORMATION | THREAD_QUERY_INFORMATION, FALSE, te32.th32ThreadID);			
+			if (hThread)
+			{
+				GROUP_AFFINITY groupAff, prevGroupAff;
+				groupAff.Group = group;
+				groupAff.Mask = bitMask;
+				if (false == SetThreadGroupAffinity(hThread, &groupAff, &prevGroupAff))
+				{
+					LIBCOMMON_DEBUG_PRINT(L"ERROR: Setting group affinity of TID %u", te32.th32ThreadID);
+					// don't return error just because we failed on some threads ...
+				}
+				else
+				{
+					// don't return error if we were succesful in *any* of the TIDs of this process
+					bR = true;
+				}
+				CloseHandle(hThread);
+			}
+			else
+			{
+				LIBCOMMON_DEBUG_PRINT(L"ERROR: Opening thread TID %u", te32.th32ThreadID);
+			}
+		}		
+	} while (Thread32Next(hSnapshot, &te32));
+	CloseHandle(hSnapshot);
 	return bR;
 }
 
