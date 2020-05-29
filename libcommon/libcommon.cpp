@@ -53,6 +53,19 @@ DWORD GetWindows10Build()
 	return dwBulldNum;
 }
 
+void RemoveTrailingBackslash(ATL::CString& csStr)
+{
+	int nLen = csStr.GetLength();
+	bool bNeedsAppend = true;
+	if (nLen)
+	{
+		if (csStr[nLen - 1] == '\\' || csStr[nLen - 1] == '/')
+		{
+			csStr.Truncate(nLen - 1);			
+		}
+	}	
+}
+
 // for appending backslash or forward-slash only if missing
 void AppendCharacterIfMissing(ATL::CString& csStr, const WCHAR wChar)
 {

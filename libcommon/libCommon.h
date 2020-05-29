@@ -7,6 +7,7 @@ void ListView_UnselectAll(const HWND hWndListview);
 
 bool IsFileWritable(const WCHAR* pwszFilepath);
 
+void RemoveTrailingBackslash(ATL::CString& csStr);
 // for appending backslash or forward-slash only if missing
 void AppendCharacterIfMissing(ATL::CString& csStr, const WCHAR wChar);
 
