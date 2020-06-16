@@ -111,12 +111,36 @@ void FixDarkScrollBar()
 	}
 }
 
-// unused
-constexpr bool CheckBuildNumber(DWORD buildNumber)
+#define LAST_VERIFIED_SUPPORTED_DARKMODE_WIN10_BUILD 19635
+#define BUILD_ALLOWABLE_MARGIN 1250		// max build # over last known supported
+
+bool CheckWin10BuildNumber(const DWORD dwBuildNumber, const bool bAllowFutureWin10Builds_Unsafe)
+{	
+	if (17763 <= dwBuildNumber && (dwBuildNumber <= (LAST_VERIFIED_SUPPORTED_DARKMODE_WIN10_BUILD + BUILD_ALLOWABLE_MARGIN) || bAllowFutureWin10Builds_Unsafe))
+	{
+		return true;
+	}
+	return false;
+}
+
+// returns false if Windows build doesn't match compatible
+// intended for use to show user message box allowing over-ride
+bool IsWindows10BuildKnownDarkCompatible()
 {
-	return (buildNumber == 17763 || // 1809
-		buildNumber == 18362 || // 1903
-		buildNumber == 18363); // 1909
+	fnRtlGetNtVersionNumbers RtlGetNtVersionNumbers = reinterpret_cast<fnRtlGetNtVersionNumbers>(GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "RtlGetNtVersionNumbers"));
+	if (RtlGetNtVersionNumbers)
+	{
+		DWORD major, minor, build;
+		RtlGetNtVersionNumbers(&major, &minor, &build);
+		build &= ~0xF0000000;
+		// ensure global is set, for safety on later maintenance
+		g_buildNumber = build;
+		if (major == 10 && minor == 0)
+		{
+			return CheckWin10BuildNumber(build, false);
+		}		
+	}
+	return false;
 }
 
 void InitDarkMode(const bool bAllowFutureWin10Builds_Unsafe)
@@ -127,9 +151,7 @@ void InitDarkMode(const bool bAllowFutureWin10Builds_Unsafe)
 		DWORD major, minor;
 		RtlGetNtVersionNumbers(&major, &minor, &g_buildNumber);
 		g_buildNumber &= ~0xF0000000;
-#define LAST_VERIFIED_SUPPORTED_DARKMODE_WIN10_BUILD 19635
-#define BUILD_ALLOWABLE_MARGIN 1250		// max build # over last known supported
-		if (major == 10 && minor == 0 && 17763 <= g_buildNumber && (g_buildNumber <= (LAST_VERIFIED_SUPPORTED_DARKMODE_WIN10_BUILD + BUILD_ALLOWABLE_MARGIN) || bAllowFutureWin10Builds_Unsafe)) // Windows 10 1809 10.0.17763 - 1909 10.0.18363
+		if (major == 10 && minor == 0 && CheckWin10BuildNumber(g_buildNumber, bAllowFutureWin10Builds_Unsafe))
 		{
 			HMODULE hUxtheme = LoadLibraryExW(L"uxtheme.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
 			if (hUxtheme)

@@ -98,3 +98,6 @@ bool IsColorSchemeChangeMessage(UINT message, LPARAM lParam);
 void AllowDarkModeForApp(bool allow);
 void FixDarkScrollBar();
 void InitDarkMode(const bool bAllowFutureWin10Builds_Unsafe = false);
+
+// intended for use to show user message box allowing over-ride
+bool IsWindows10BuildKnownDarkCompatible();
