@@ -4,6 +4,7 @@
 #include "pch.h"
 #include "framework.h"
 #include "libCommon.h"
+#include <sddl.h>
 
 void ListView_SetSingleSelection(const HWND hWndListview, const int nIndex)
 {
@@ -272,5 +273,114 @@ BOOL IsElevated()
 	{
 		CloseHandle(hToken);
 	}
+	return fRet;
+}
+
+// from MSDN https://docs.microsoft.com/en-us/previous-versions/dotnet/articles/bb625960(v=msdn.10)?redirectedfrom=MSDN
+// see https://stackoverflow.com/questions/9912534/how-to-create-a-new-process-with-a-lower-integrity-level-il
+// "There appears to be a bug in the example code, since the correct SID for low integrity level is S-1-16-4096 rather than S-1-16-1024, but you'll want medium integrity level anyway, which is S-1-16-8192. These can be found here."
+// https://support.microsoft.com/en-us/help/243330/well-known-security-identifiers-in-windows-operating-systems
+BOOL CreateMediumProcess(const WCHAR *pwszProcessName, WCHAR *pwszCommandLine, const WCHAR *pwszCWD, PROCESS_INFORMATION *pInfo)
+{	
+	BOOL                  fRet;
+	HANDLE                hToken = NULL;
+	HANDLE                hNewToken = NULL;
+	PSID                  pIntegritySid = NULL;
+	TOKEN_MANDATORY_LABEL TIL = { 0 };	
+	STARTUPINFO           StartupInfo = { 0 };	
+	_ASSERT(pInfo);
+	memset(pInfo, 0, sizeof(PROCESS_INFORMATION));
+
+	// Medium integrity SID
+	WCHAR wszIntegritySid[20] = L"S-1-16-4096";	
+
+	fRet = OpenProcessToken(GetCurrentProcess(),
+		TOKEN_DUPLICATE |
+		TOKEN_ADJUST_DEFAULT |
+		TOKEN_QUERY |
+		TOKEN_ASSIGN_PRIMARY,
+		&hToken);
+
+	if (!fRet)
+	{
+		goto CleanExit;
+	}
+
+	fRet = DuplicateTokenEx(hToken,
+		0,
+		NULL,
+		SecurityImpersonation,
+		TokenPrimary,
+		&hNewToken);
+
+	if (!fRet)
+	{
+		goto CleanExit;
+	}
+	
+	fRet = ConvertStringSidToSid(wszIntegritySid, &pIntegritySid);
+
+	if (!fRet)
+	{
+		goto CleanExit;
+	}
+
+	TIL.Label.Attributes = SE_GROUP_INTEGRITY;
+	TIL.Label.Sid = pIntegritySid;
+
+	//
+	// Set the process integrity level
+	//
+
+	fRet = SetTokenInformation(hNewToken,
+		TokenIntegrityLevel,
+		&TIL,
+		sizeof(TOKEN_MANDATORY_LABEL) + GetLengthSid(pIntegritySid));
+
+	if (!fRet)
+	{
+		goto CleanExit;
+	}
+
+	//
+	// Create the new process at Low integrity
+	//
+
+	fRet = CreateProcessAsUser(hNewToken,
+		pwszProcessName,
+		pwszCommandLine,		
+		NULL,
+		NULL,
+		FALSE,
+		0,
+		NULL,
+		pwszCWD,
+		&StartupInfo,
+		pInfo);
+
+CleanExit:
+
+	if (pInfo->hProcess != NULL)
+	{
+		CloseHandle(pInfo->hProcess);
+	}
+
+	if (pInfo->hThread != NULL)
+	{
+		CloseHandle(pInfo->hThread);
+	}
+
+	LocalFree(pIntegritySid);
+
+	if (hNewToken != NULL)
+	{
+		CloseHandle(hNewToken);
+	}
+
+	if (hToken != NULL)
+	{
+		CloseHandle(hToken);
+	}
+
 	return fRet;
 }

@@ -22,3 +22,5 @@ bool wildicmpEx(const TCHAR* wild, const TCHAR* str);
 #define wildcmpi wildicmpEx
 
 BOOL IsElevated();
+// launch a medium IL process (unelevated from elevated)
+BOOL CreateMediumProcess(const WCHAR* pwszProcessName, WCHAR* pwszCommandLine, const WCHAR *pwszCWD, PROCESS_INFORMATION* pInfo);
