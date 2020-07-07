@@ -125,7 +125,7 @@ bool CheckWin10BuildNumber(const DWORD dwBuildNumber, const bool bAllowFutureWin
 
 // returns false if Windows build doesn't match compatible
 // intended for use to show user message box allowing over-ride
-bool IsWindows10BuildKnownDarkCompatible()
+bool IsWindowsBuildNewerThanKnownDarkModeCompatible()
 {
 	fnRtlGetNtVersionNumbers RtlGetNtVersionNumbers = reinterpret_cast<fnRtlGetNtVersionNumbers>(GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "RtlGetNtVersionNumbers"));
 	if (RtlGetNtVersionNumbers)
@@ -136,9 +136,20 @@ bool IsWindows10BuildKnownDarkCompatible()
 		// ensure global is set, for safety on later maintenance
 		g_buildNumber = build;
 		if (major == 10 && minor == 0)
+		{			
+			if (build > (LAST_VERIFIED_SUPPORTED_DARKMODE_WIN10_BUILD + BUILD_ALLOWABLE_MARGIN))
+			{
+				return true;
+			}
+		}
+		else if (major >= 10 && minor > 0)
 		{
-			return CheckWin10BuildNumber(build, false);
-		}		
+			return true;
+		}
+		else if (major > 10)
+		{
+			return true;
+		}
 	}
 	return false;
 }
