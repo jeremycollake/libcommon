@@ -20,6 +20,10 @@ class ProcessIconImageList
 
 	HICON GetIconForFilename(const WCHAR* pwszFilename)
 	{
+		if (!pwszFilename || !pwszFilename[0])
+		{
+			return NULL;
+		}
 		ICON_DEBUG_PRINT(L"Extracting icon for %s", pwszFilename);
 		WORD wIndex = 0;
 		return ExtractAssociatedIcon(GetModuleHandle(NULL), const_cast<LPWSTR>(pwszFilename), &wIndex);		
@@ -90,7 +94,7 @@ public:
 		{
 			mapImgIdxToRefCount[i->second]++;
 			if(pbOutWentToDisk) *pbOutWentToDisk = false;
-			ICON_DEBUG_PRINT(L" - already have icon for %s, incrementing reference count to %d", csFile, mapImgIdxToRefCount[i->second]);			
+			ICON_DEBUG_PRINT(L" - already have icon for %s, incrementing reference count of %d to %d", csFile, i->second, mapImgIdxToRefCount[i->second]);			
 		}
 		else
 		{
