@@ -266,3 +266,123 @@ bool processOperations::SetProcessGroupAffinity(const unsigned long pid, int nPr
 	CloseHandle(hProcess);
 	return (ntstatus == 0) ? true : false;
 }
+
+unsigned long processOperations::GetParentOfProcess(const unsigned long pid)
+{
+	HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, pid);
+	if (INVALID_HANDLE_VALUE == hSnapshot)
+	{
+		return 0;
+	}
+	unsigned long retParentPid = 0;
+	PROCESSENTRY32 procEntry = {};
+	procEntry.dwSize = sizeof(procEntry);
+	if (!Process32First(hSnapshot, &procEntry))
+	{
+		return 0;
+	}
+	do
+	{
+		if (procEntry.th32ProcessID == pid)
+		{
+			retParentPid = procEntry.th32ParentProcessID;
+			break;
+		}
+
+	} while (Process32Next(hSnapshot, &procEntry));
+
+	CloseHandle(hSnapshot);
+	return retParentPid;
+}
+
+bool processOperations::GetLogonFromToken(HANDLE hToken, CString& csUser, CString& csDomain)
+{	
+	csUser.Empty();
+	csDomain.Empty();
+
+	DWORD dwSizeUser = UNLEN * 2;
+	DWORD dwSizeDomain = UNLEN * 2;	// should use DNLEN, but so small
+	WCHAR lpName[UNLEN * 2] = { 0 };
+	WCHAR lpDomain[UNLEN * 2] = { 0 };
+	SID_NAME_USE SidType;
+
+	bool bSuccess = false;
+	DWORD dwLength = 0;	
+	PTOKEN_USER ptu = NULL;
+	
+	if (!hToken)
+	{
+		return false;
+	}
+	if (!GetTokenInformation(hToken, TokenUser, (LPVOID)ptu, 0, &dwLength))
+	{
+		if (GetLastError() != ERROR_INSUFFICIENT_BUFFER)
+		{
+			return false;
+		}
+
+		ptu = (PTOKEN_USER)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, dwLength);
+		if (!ptu)
+		{
+			return false;
+		}
+	}
+
+	if (!GetTokenInformation(hToken, TokenUser, (LPVOID)ptu, dwLength,&dwLength))
+	{
+		if (ptu)
+		{
+			HeapFree(GetProcessHeap(), 0, (LPVOID)ptu);
+		}
+		return false;
+	}	
+
+	if (LookupAccountSid(NULL, ptu->User.Sid, lpName, &dwSizeUser, lpDomain, &dwSizeDomain, &SidType))
+	{		
+		csUser = lpName;
+		csDomain = lpDomain;
+		bSuccess = true;
+	}
+
+	if (ptu)
+	{
+		HeapFree(GetProcessHeap(), 0, (LPVOID)ptu);
+	}
+	return bSuccess;
+}
+
+bool processOperations::GetUserNameByToken(const unsigned long pid, CString& csUser, CString& csDomain)
+{
+	HANDLE hProcess = NULL;
+	hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, pid);
+	if (!hProcess)
+	{
+		hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+	}
+	if (!hProcess)
+	{
+		return false;
+	}
+
+	HANDLE hToken = NULL;
+	if (FALSE == OpenProcessToken(hProcess, TOKEN_QUERY, &hToken))
+	{
+		return false;
+	}
+	bool bR = GetLogonFromToken(hToken, csUser, csDomain);
+
+	CloseHandle(hToken);
+	return bR;
+}
+
+
+bool processOperations::GetUserNameForProcess(const unsigned long pid, ATL::CString &csUser, ATL::CString& csDomain)
+{	
+	csUser.Empty();
+	csDomain.Empty();	
+	if (GetUserNameByToken(pid, csUser, csDomain))
+	{		
+		return csUser.GetLength();
+	}
+	return 0;
+}

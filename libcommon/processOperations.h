@@ -1,7 +1,9 @@
 #pragma once
 #include <windows.h>
+#include <lmcons.h>
 #include <tlhelp32.h>
 #include <vector>
+#include <atlstr.h>
 
 typedef LONG(NTAPI* NtSuspendProcess)(IN HANDLE ProcessHandle);
 typedef LONG(NTAPI* NtResumeProcess)(IN HANDLE ProcessHandle);
@@ -41,5 +43,8 @@ public:
 	bool SuspendProcess(const unsigned long pid);
 	bool ResumeProcess(const unsigned long pid);
 
-
+	bool GetUserNameByToken(const unsigned long pid, CString& csUser, CString& csDomain);
+	unsigned long GetParentOfProcess(const unsigned long pid);
+	bool GetLogonFromToken(HANDLE hToken, CString& csUser, CString& csDomain);
+	bool GetUserNameForProcess(const unsigned long pid, ATL::CString &csUser, ATL::CString &csDomain);	
 };
