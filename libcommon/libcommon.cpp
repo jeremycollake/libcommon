@@ -28,7 +28,12 @@ void ListView_UnselectAll(const HWND hWndListview)
 }
 
 bool IsFileWritable(const WCHAR *pwszFilepath)
-{
+{	
+	// if doesn't exist, return true
+	if (GetFileAttributes(pwszFilepath) == INVALID_FILE_ATTRIBUTES)
+	{
+		return true;
+	}
 	HANDLE hFile = CreateFile(pwszFilepath, GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
 	if (hFile != INVALID_HANDLE_VALUE)
 	{
@@ -56,8 +61,7 @@ DWORD GetWindows10Build()
 
 void RemoveTrailingBackslash(ATL::CString& csStr)
 {
-	int nLen = csStr.GetLength();
-	bool bNeedsAppend = true;
+	int nLen = csStr.GetLength();	
 	if (nLen)
 	{
 		if (csStr[nLen - 1] == '\\' || csStr[nLen - 1] == '/')
