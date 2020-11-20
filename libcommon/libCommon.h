@@ -4,6 +4,7 @@
 
 void ListView_SetSingleSelection(const HWND hWndListview, const int nIndex);
 void ListView_UnselectAll(const HWND hWndListview);
+ATL::CString ListView_GetTextAtPosition(const HWND hWndListview, const int nRow, const int nCol);
 
 bool IsFileWritable(const WCHAR* pwszFilepath);
 

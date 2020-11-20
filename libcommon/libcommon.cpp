@@ -27,6 +27,20 @@ void ListView_UnselectAll(const HWND hWndListview)
 	} while (nSearchPos != -1);	
 }
 
+ATL::CString ListView_GetTextAtPosition(const HWND hWndListview, const int nRow, const int nCol)
+{
+	LVITEM lvItem;
+	memset(&lvItem, 0, sizeof(lvItem));
+	lvItem.mask = LVIF_TEXT;
+	lvItem.iItem = nRow;
+	lvItem.iSubItem = nCol;
+	WCHAR wszText[1024] = { 0 };
+	lvItem.pszText = wszText;
+	lvItem.cchTextMax = _countof(wszText);
+	ListView_GetItem(hWndListview, &lvItem);
+	return wszText;
+}
+
 bool IsFileWritable(const WCHAR *pwszFilepath)
 {	
 	// if doesn't exist, return true
