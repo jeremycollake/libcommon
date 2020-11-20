@@ -6,7 +6,7 @@
 #include "pch.h"
 #include "ProductOptions.h"
 
-ProductOptions::ProductOptions(const HKEY hHive, const WCHAR* pwszProductName) : hHive(hHive)
+ProductOptions::ProductOptions(const HKEY hHive, const WCHAR* pwszProductName, const DWORD Wow64Access) : _hHive(hHive), _Wow64Access(Wow64Access)
 {
 	csKeyname.Format(L"Software\\%s", pwszProductName);
 }
@@ -172,9 +172,9 @@ bool ProductOptions::read_value(const WCHAR* pwszValueName, unsigned& nResult)
 
 	nResult = 0;
 
-	if (RegCreateKeyEx(hHive,
+	if (RegCreateKeyEx(_hHive,
 		csKeyname.GetBuffer(),
-		0, NULL, 0, KEY_QUERY_VALUE, NULL, &hKey, &dwDispo) == ERROR_SUCCESS)
+		0, NULL, 0, KEY_QUERY_VALUE | _Wow64Access, NULL, &hKey, &dwDispo) == ERROR_SUCCESS)
 	{
 		DWORD dwVal = 0;
 		DWORD dwSize = sizeof(DWORD);
@@ -198,9 +198,9 @@ bool ProductOptions::read_value(const WCHAR* pwszValueName, unsigned long long& 
 
 	nResult = 0;
 
-	if (RegCreateKeyEx(hHive,
+	if (RegCreateKeyEx(_hHive,
 		csKeyname.GetBuffer(),
-		0, NULL, 0, KEY_QUERY_VALUE, NULL, &hKey, &dwDispo) == ERROR_SUCCESS)
+		0, NULL, 0, KEY_QUERY_VALUE| _Wow64Access, NULL, &hKey, &dwDispo) == ERROR_SUCCESS)
 	{
 		unsigned long long nLoaded = 0;
 		DWORD dwSize = sizeof(nLoaded);
@@ -225,9 +225,9 @@ bool ProductOptions::read_value(const WCHAR* pwszValueName, ATL::CString& csResu
 
 	csResult.Empty();
 
-	if (RegCreateKeyEx(hHive,
+	if (RegCreateKeyEx(_hHive,
 		csKeyname.GetBuffer(),
-		0, NULL, 0, KEY_QUERY_VALUE, NULL, &hKey, &dwDispo) == ERROR_SUCCESS)
+		0, NULL, 0, KEY_QUERY_VALUE | _Wow64Access, NULL, &hKey, &dwDispo) == ERROR_SUCCESS)
 	{
 		LPWSTR pwszVal;
 		DWORD dwSize = 0;
@@ -263,9 +263,9 @@ bool ProductOptions::write_value(const WCHAR* pwszValueName, const unsigned nVal
 	HKEY hKey;
 	DWORD dwDispo = 0;
 
-	if (RegCreateKeyEx(hHive,
+	if (RegCreateKeyEx(_hHive,
 		csKeyname.GetBuffer(),
-		0, NULL, 0, KEY_SET_VALUE, NULL, &hKey, &dwDispo) == ERROR_SUCCESS)
+		0, NULL, 0, KEY_SET_VALUE | _Wow64Access, NULL, &hKey, &dwDispo) == ERROR_SUCCESS)
 	{
 		if (RegSetValueEx(hKey, pwszValueName, 0, REG_DWORD, (LPBYTE)& nVal, sizeof(nVal)) == ERROR_SUCCESS)
 		{
@@ -282,9 +282,9 @@ bool ProductOptions::write_value(const WCHAR* pwszValueName, const unsigned long
 	HKEY hKey;
 	DWORD dwDispo = 0;
 
-	if (RegCreateKeyEx(hHive,
+	if (RegCreateKeyEx(_hHive,
 		csKeyname.GetBuffer(),
-		0, NULL, 0, KEY_SET_VALUE, NULL, &hKey, &dwDispo) == ERROR_SUCCESS)
+		0, NULL, 0, KEY_SET_VALUE | _Wow64Access, NULL, &hKey, &dwDispo) == ERROR_SUCCESS)
 	{
 		if (RegSetValueEx(hKey, pwszValueName, 0, REG_QWORD, (LPBYTE)& nVal, sizeof(nVal)) == ERROR_SUCCESS)
 		{
@@ -302,9 +302,9 @@ bool ProductOptions::write_value(const WCHAR* pwszValueName, const WCHAR* val)
 	HKEY hKey;
 	DWORD dwDispo = 0;
 
-	if (RegCreateKeyEx(hHive,
+	if (RegCreateKeyEx(_hHive,
 		csKeyname.GetBuffer(),
-		0, NULL, 0, KEY_SET_VALUE, NULL, &hKey, &dwDispo) == ERROR_SUCCESS)
+		0, NULL, 0, KEY_SET_VALUE | _Wow64Access, NULL, &hKey, &dwDispo) == ERROR_SUCCESS)
 	{
 		if (val && val[0])
 		{
@@ -333,9 +333,9 @@ bool ProductOptions::delete_value(const WCHAR* pwszValueName)
 	HKEY hKey;
 	DWORD dwDispo = 0;
 
-	if (RegCreateKeyEx(hHive,
+	if (RegCreateKeyEx(_hHive,
 		csKeyname.GetBuffer(),
-		0, NULL, 0, KEY_SET_VALUE, NULL, &hKey, &dwDispo) == ERROR_SUCCESS)
+		0, NULL, 0, KEY_SET_VALUE | _Wow64Access, NULL, &hKey, &dwDispo) == ERROR_SUCCESS)
 	{
 		if (RegDeleteValue(hKey, pwszValueName) == ERROR_SUCCESS)
 		{

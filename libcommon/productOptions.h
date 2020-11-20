@@ -17,7 +17,8 @@
 
 class ProductOptions
 {
-	HKEY hHive;
+	HKEY _hHive;
+	DWORD _Wow64Access;	// e.g. KEY_WOW64_32KEY, see https://docs.microsoft.com/en-us/windows/win32/winprog64/accessing-an-alternate-registry-view
 	ATL::CString csKeyname;
 
 	// map of options of various data types
@@ -37,7 +38,7 @@ class ProductOptions
 	bool write_value(const WCHAR* pwszValueName, const unsigned long long nVal);
 	bool write_value(const WCHAR* pwszValueName, const WCHAR* val);
 public:
-	ProductOptions(const HKEY hHive, const WCHAR* pwszProductName);
+	ProductOptions(const HKEY hHive, const WCHAR* pwszProductName, const DWORD Wow64Access=0);
 
 	// force a reload of any referenced options
 	void refresh();
