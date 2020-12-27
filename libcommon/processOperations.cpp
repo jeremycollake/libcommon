@@ -1,6 +1,19 @@
 #include "pch.h"
 #include "processOperations.h"
 
+// this is used when CPU core count changes (e.g. as the result of UEFI adjustment) but we still want to apply CPU affinity rules
+unsigned long long processOperations::LimitAffinityToInstalledCPUCores(unsigned long long bitMask)
+{
+	// bitwise AND by available CPU cores		
+	_ASSERT(sysInfo.dwActiveProcessorMask);
+	unsigned long long newBitMask = bitMask;
+	if (sysInfo.dwActiveProcessorMask)
+	{
+		newBitMask &= sysInfo.dwActiveProcessorMask;
+	}
+	return newBitMask;
+}
+
 bool processOperations::SetAffinityMask(const unsigned long pid, const unsigned long long bitMask, const int group)
 {
 	HANDLE hProcess = OpenProcess(PROCESS_SET_INFORMATION, FALSE, pid);
@@ -9,7 +22,9 @@ bool processOperations::SetAffinityMask(const unsigned long pid, const unsigned 
 	bool bR = false;
 	if (group == NO_PROCESSOR_GROUP)
 	{
-		bR = ::SetProcessAffinityMask(hProcess, bitMask) ? true : false;
+		// TODO: this can (should) also be applied when group affinity used - but be precise about available CPUs in a group, assume bitmask could differ between groups
+		unsigned long long newBitMask = LimitAffinityToInstalledCPUCores(bitMask);
+		bR = ::SetProcessAffinityMask(hProcess, newBitMask) ? true : false;
 	}
 	else
 	{

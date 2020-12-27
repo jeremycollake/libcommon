@@ -25,7 +25,12 @@ public:
 
 class processOperations
 {	
+	SYSTEM_INFO sysInfo;
 public:
+	processOperations()
+	{
+		GetSystemInfo(&sysInfo);
+	}
 	bool GetAffinityMask(const unsigned long pid, unsigned long long& bitMask);
 	bool SetAffinityMask(const unsigned long pid, const unsigned long long bitMask, const int group=NO_PROCESSOR_GROUP);
 	// get CPU affinity mask with group
@@ -47,4 +52,6 @@ public:
 	unsigned long GetParentOfProcess(const unsigned long pid);
 	bool GetLogonFromToken(HANDLE hToken, CString& csUser, CString& csDomain);
 	bool GetUserNameForProcess(const unsigned long pid, ATL::CString &csUser, ATL::CString &csDomain);	
+
+	unsigned long long LimitAffinityToInstalledCPUCores(unsigned long long bitmask);
 };
