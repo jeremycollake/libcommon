@@ -157,9 +157,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="bitOperations.h" />
+    <ClInclude Include="CSVEmitter.h" />
+    <ClInclude Include="CSVReader.h" />
+    <ClInclude Include="CSVUtil.h" />
     <ClInclude Include="DbgPrintf.h" />
     <ClInclude Include="DebugOutToggles.h" />
     <ClInclude Include="framework.h" />
+    <ClInclude Include="InterprocessCommunicator.h" />
     <ClInclude Include="libCommon.h" />
     <ClInclude Include="ProcessIconImageList.h" />
     <ClInclude Include="ParentProcessChain.h" />
