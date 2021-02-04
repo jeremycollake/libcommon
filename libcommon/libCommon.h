@@ -1,6 +1,8 @@
 #pragma once
 
 #include <atlstr.h>
+#include <vector>
+#include <string>
 
 void ListView_SetSingleSelection(const HWND hWndListview, const int nIndex);
 void ListView_UnselectAll(const HWND hWndListview);
@@ -9,6 +11,7 @@ ATL::CString ListView_GetTextAtPosition(const HWND hWndListview, const int nRow,
 bool IsFileWritable(const WCHAR* pwszFilepath);
 
 void RemoveTrailingBackslash(ATL::CString& csStr);
+void AppendBackslashIfMissing(ATL::CString& csStr);
 // for appending backslash or forward-slash only if missing
 void AppendCharacterIfMissing(ATL::CString& csStr, const WCHAR wChar);
 
@@ -25,3 +28,8 @@ bool wildicmpEx(const TCHAR* wild, const TCHAR* str);
 BOOL IsElevated();
 // launch a medium IL process (unelevated from elevated)
 BOOL CreateMediumProcess(const WCHAR* pwszProcessName, WCHAR* pwszCommandLine, const WCHAR *pwszCWD, PROCESS_INFORMATION* pInfo);
+
+size_t ExplodeString(const ATL::CString& str, const WCHAR delim, std::vector<ATL::CString>& vecOut);
+bool IsStringMatchInVector(const WCHAR* string, const std::vector<ATL::CString>& vecPatterns);
+
+size_t wstringFindNoCase(const std::wstring& strHaystack, const std::wstring& strNeedle);

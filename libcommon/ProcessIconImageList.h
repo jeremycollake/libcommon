@@ -86,7 +86,7 @@ public:
 	{
 		ATL::CString csFile = pwszFile;
 		csFile.MakeLower();
-		ICON_DEBUG_PRINT(L"\n AddTrackedFilename %s", csFile);
+		ICON_DEBUG_PRINT(L"\n AddTrackedFilename %s", csFile.GetString());
 		std::lock_guard<std::mutex> guard(mutexMaps);
 
 		auto i = mapFilenameToImgIdx.find(csFile);
@@ -98,6 +98,7 @@ public:
 		}
 		else
 		{
+			ICON_DEBUG_PRINT(L"Loading icon for %s", csFile.GetString());
 			// icon not loaded, load it and add to imagelist
 			HICON hIcon = GetIconForFilename(pwszFile);
 			int nImageIndex = 0;
@@ -126,11 +127,12 @@ public:
 	{	
 		ATL::CString csFile = pwszFile;
 		csFile.MakeLower();
-		ICON_DEBUG_PRINT(L"\n RemoveTrackedFilename %s", csFile);
+		ICON_DEBUG_PRINT(L"\n RemoveTrackedFilename %s", csFile.GetString());
 		std::lock_guard<std::mutex> guard(mutexMaps);
 
 		// should be in the map
-		_ASSERT(mapFilenameToImgIdx.find(csFile) != mapFilenameToImgIdx.end());
+		// TODO: this gets signalled, processes not always in the map
+		//_ASSERT(mapFilenameToImgIdx.find(csFile) != mapFilenameToImgIdx.end());
 
 		int nImageIndex = mapFilenameToImgIdx[csFile];
 		if (--mapImgIdxToRefCount[nImageIndex] == 0)

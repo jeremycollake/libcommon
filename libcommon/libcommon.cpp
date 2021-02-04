@@ -5,6 +5,9 @@
 #include "framework.h"
 #include "libCommon.h"
 #include <sddl.h>
+#include <algorithm>
+#include <string>
+#include <cctype>
 
 void ListView_SetSingleSelection(const HWND hWndListview, const int nIndex)
 {
@@ -83,6 +86,11 @@ void RemoveTrailingBackslash(ATL::CString& csStr)
 			csStr.Truncate(nLen - 1);			
 		}
 	}	
+}
+
+void AppendBackslashIfMissing(ATL::CString& csStr)
+{
+	AppendCharacterIfMissing(csStr, '\\');
 }
 
 // for appending backslash or forward-slash only if missing
@@ -401,4 +409,42 @@ CleanExit:
 	}
 
 	return fRet;
+}
+
+size_t ExplodeString(const ATL::CString& str, const WCHAR delim, std::vector<ATL::CString>& vecOut)
+{
+	int nPos = 0;
+	ATL::CString token = str.Tokenize(L";", nPos);
+	while (-1 != nPos)
+	{
+		vecOut.push_back(token);
+		token = str.Tokenize(L";", nPos);
+	};
+	return vecOut.size();
+}
+
+bool IsStringMatchInVector(const WCHAR* string, const std::vector<ATL::CString>& vecPatterns)
+{
+	for (auto& i : vecPatterns)
+	{
+		if (wildicmpEx(i, string))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+size_t wstringFindNoCase(const std::wstring& strHaystack, const std::wstring& strNeedle)
+{
+	auto it = std::search(
+		strHaystack.begin(), strHaystack.end(),
+		strNeedle.begin(), strNeedle.end(),
+		[](wchar_t ch1, wchar_t ch2) { return std::toupper(ch1) == std::toupper(ch2); }
+	);
+	if (it == strHaystack.end())
+	{
+		return std::wstring::npos;
+	}
+	return strHaystack.end() - it;
 }
