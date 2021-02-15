@@ -113,20 +113,20 @@ bool processOperations::GetGroupAffinity(const unsigned long pid, GroupAffinity&
 	// for now use standard documented API
 	std::vector<USHORT> vGroups;
 	bool bR=GetAffinityMask(pid, aff.mask);
-	if (GetActiveProcessorGroupCount() > 1)
+if (GetActiveProcessorGroupCount() > 1)
+{
+	if (GetProcessProcessorGroups(pid, vGroups) == 0)
 	{
-		if (GetProcessProcessorGroups(pid, vGroups) == 0)
-		{
-			_ASSERT(0);
-			return false;
-		}
-		aff.nGroupId = vGroups[0];
-	}	
-	else
-	{
-		aff.nGroupId = NO_PROCESSOR_GROUP;
+		_ASSERT(0);
+		return false;
 	}
-	return bR;
+	aff.nGroupId = vGroups[0];
+}
+else
+{
+	aff.nGroupId = NO_PROCESSOR_GROUP;
+}
+return bR;
 }
 
 bool processOperations::IsMultiGroupProcess(const unsigned long pid)
@@ -139,14 +139,14 @@ bool processOperations::IsMultiGroupProcess(const unsigned long pid)
 	return false;
 }
 
-size_t processOperations::GetProcessProcessorGroups(const unsigned long pid, std::vector<USHORT> &vGroups)
+size_t processOperations::GetProcessProcessorGroups(const unsigned long pid, std::vector<USHORT>& vGroups)
 {
 	vGroups.clear();
-	
+
 	HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, pid);
-	if (NULL==hProcess) hProcess=OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+	if (NULL == hProcess) hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
 	if (NULL == hProcess) return 0;
-	
+
 	USHORT GroupCount = 0;
 	PUSHORT pGroupArray = nullptr;
 	// first get the buffer size
@@ -157,13 +157,13 @@ size_t processOperations::GetProcessProcessorGroups(const unsigned long pid, std
 		return 0;
 	}
 	if (ERROR_INSUFFICIENT_BUFFER != GetLastError())
-	{		
+	{
 		CloseHandle(hProcess);
 		return 0;
 	}
 	pGroupArray = new USHORT[GroupCount];
 	if (FALSE == GetProcessGroupAffinity(hProcess, &GroupCount, pGroupArray))
-	{		
+	{
 		delete pGroupArray;
 		CloseHandle(hProcess);
 		return 0;
@@ -184,12 +184,12 @@ bool processOperations::SetPriorityBoost(const unsigned long pid, const bool bPr
 	HANDLE hProcess = OpenProcess(PROCESS_SET_INFORMATION, FALSE, pid);
 	if (NULL == hProcess) return false;
 	bool bR = ::SetProcessPriorityBoost(hProcess, bPriorityBoostEnabled ? FALSE : TRUE) ? true : false;
-	CloseHandle(hProcess);	
+	CloseHandle(hProcess);
 	return bR;
 }
 
 bool processOperations::SetPriorityClass(const unsigned long pid, const long priorityClass)
-{	
+{
 	HANDLE hProcess = OpenProcess(PROCESS_SET_INFORMATION, FALSE, pid);
 	if (NULL == hProcess) return false;
 	bool bR = ::SetPriorityClass(hProcess, priorityClass) ? true : false;
@@ -211,8 +211,11 @@ bool processOperations::Terminate(const unsigned long pid, const unsigned long e
 {
 	HANDLE hProcess = OpenProcess(SYNCHRONIZE | PROCESS_TERMINATE, FALSE, pid);
 	if (NULL == hProcess) return true;  // return successful	
-	::TerminateProcess(hProcess, exitCode);
-	bool bR = (WaitForSingleObject(hProcess, 0) == WAIT_OBJECT_0) ? true : false;
+	bool bR = ::TerminateProcess(hProcess, exitCode) ? true : false;
+	if (WaitForSingleObject(hProcess, 0) == WAIT_OBJECT_0)
+	{
+		bR = true;
+	}
 	CloseHandle(hProcess);
 	return bR;
 }
@@ -400,4 +403,75 @@ bool processOperations::GetUserNameForProcess(const unsigned long pid, ATL::CStr
 		return csUser.GetLength();
 	}
 	return 0;
+}
+
+
+HWND processOperations::GetLikelyPrimaryWindow(const unsigned long pid)
+{
+	struct WindowFinderData {
+		unsigned long pid;
+		HWND hWndLikelyPrimary;
+	};
+	WindowFinderData data = { pid, NULL };
+	EnumWindows([](HWND hWnd, LPARAM lParam) -> BOOL {
+		auto& data = *(WindowFinderData*)lParam;
+		unsigned long pid = 0;
+		GetWindowThreadProcessId(hWnd, &pid);		
+		if (data.pid != pid || !(GetWindow(hWnd, GW_OWNER) == NULL && IsWindowVisible(hWnd)))			
+		{
+			return TRUE;
+		}
+		data.hWndLikelyPrimary = hWnd;
+		return FALSE;
+		}, (LPARAM)&data);
+	return data.hWndLikelyPrimary;
+}
+
+bool processOperations::CloseApp(const unsigned long pid, const unsigned long exitCode, const unsigned long millisecondsMaxWait)
+{	
+	bool bR = false;
+	HANDLE hProcess = NULL;		
+	hProcess = OpenProcess(SYNCHRONIZE, FALSE, pid);		// only open with SYNCHRONIZE here, we call Terminate as necessary that opens with TERMINATE
+	if (NULL == hProcess)
+	{		
+		LIBCOMMON_DEBUG_PRINT(L"CloseApp can't open process handle");
+		return true;
+	}
+
+	// first make sure the process isn't already terminated
+	if (WaitForSingleObject(hProcess, 0) != WAIT_OBJECT_0)
+	{		
+		//
+		// first try graceful close, then forced close
+		//
+
+		HWND hWndMain = GetLikelyPrimaryWindow(pid);
+		bool bTimedOut = false;
+		if (hWndMain)
+		{
+			LIBCOMMON_DEBUG_PRINT(L"Found main window for %d", pid);
+			PostMessage(hWndMain, WM_CLOSE, 0, 0);
+			DWORD dwWaitMs = millisecondsMaxWait;				
+			if (WaitForSingleObject(hProcess, dwWaitMs) != WAIT_OBJECT_0)
+			{
+				LIBCOMMON_DEBUG_PRINT(L"Timeout");
+				bTimedOut = true;
+			}
+			else
+			{
+				LIBCOMMON_DEBUG_PRINT(L"Wait on process handle satisfied");				
+				bR = true;
+			}
+		}
+		// force secondary termination try, won't hurt anything
+		if (NULL == hWndMain || true == bTimedOut)
+		{
+			LIBCOMMON_DEBUG_PRINT(L"WARNING: Wait timed out or no main window. Forceful termination");
+			bR = Terminate(pid, exitCode);
+
+		}
+	}
+	CloseHandle(hProcess);
+	
+	return bR;
 }

@@ -45,6 +45,7 @@ public:
 	bool SetPriorityClass(const unsigned long pid, const long priorityClass);
 	bool TrimWorkingSetSize(const unsigned long pid);
 	bool Terminate(const unsigned long pid, const unsigned long exitCode);		
+	bool CloseApp(const unsigned long pid, const unsigned long exitCode, const unsigned long millisecondsMaxWait);
 	bool SuspendProcess(const unsigned long pid);
 	bool ResumeProcess(const unsigned long pid);
 
@@ -53,5 +54,8 @@ public:
 	bool GetLogonFromToken(HANDLE hToken, CString& csUser, CString& csDomain);
 	bool GetUserNameForProcess(const unsigned long pid, ATL::CString &csUser, ATL::CString &csDomain);	
 
-	unsigned long long LimitAffinityToInstalledCPUCores(unsigned long long bitmask);
+	unsigned long long LimitAffinityToInstalledCPUCores(unsigned long long bitmask);	
+
+	HWND GetLikelyPrimaryWindow(const unsigned long pid);
+
 };
