@@ -206,3 +206,181 @@ void InitDarkMode(const bool bAllowFutureWin10Builds_Unsafe)
 	}
 }
 
+///////////////////////////////////////////////////////////////////
+// dark menu bar drawing
+// MIT license, see LICENSE
+// Copyright(c) 2021 adzm / Adam D. Walling - adapted
+
+static HTHEME g_menuTheme = nullptr;
+
+// window messages related to menu bar drawing
+#define WM_UAHDESTROYWINDOW    0x0090	// handled by DefWindowProc
+#define WM_UAHDRAWMENU         0x0091	// lParam is UAHMENU
+#define WM_UAHDRAWMENUITEM     0x0092	// lParam is UAHDRAWMENUITEM
+#define WM_UAHINITMENU         0x0093	// handled by DefWindowProc
+#define WM_UAHMEASUREMENUITEM  0x0094	// lParam is UAHMEASUREMENUITEM
+#define WM_UAHNCPAINTMENUPOPUP 0x0095	// handled by DefWindowProc
+
+// describes the sizes of the menu bar or menu item
+typedef union tagUAHMENUITEMMETRICS
+{
+	// cx appears to be 14 / 0xE less than rcItem's width!
+	// cy 0x14 seems stable, i wonder if it is 4 less than rcItem's height which is always 24 atm
+	struct {
+		DWORD cx;
+		DWORD cy;
+	} rgsizeBar[2];
+	struct {
+		DWORD cx;
+		DWORD cy;
+	} rgsizePopup[4];
+} UAHMENUITEMMETRICS;
+
+// not really used in our case but part of the other structures
+typedef struct tagUAHMENUPOPUPMETRICS
+{
+	DWORD rgcx[4];
+	DWORD fUpdateMaxWidths : 2; // from kernel symbols, padded to full dword
+} UAHMENUPOPUPMETRICS;
+
+// hmenu is the main window menu; hdc is the context to draw in
+typedef struct tagUAHMENU
+{
+	HMENU hmenu;
+	HDC hdc;
+	DWORD dwFlags; // no idea what these mean, in my testing it's either 0x00000a00 or sometimes 0x00000a10
+} UAHMENU;
+
+// menu items are always referred to by iPosition here
+typedef struct tagUAHMENUITEM
+{
+	int iPosition; // 0-based position of menu item in menubar
+	UAHMENUITEMMETRICS umim;
+	UAHMENUPOPUPMETRICS umpm;
+} UAHMENUITEM;
+
+// the DRAWITEMSTRUCT contains the states of the menu items, as well as
+// the position index of the item in the menu, which is duplicated in
+// the UAHMENUITEM's iPosition as well
+typedef struct UAHDRAWMENUITEM
+{
+	DRAWITEMSTRUCT dis; // itemID looks uninitialized
+	UAHMENU um;
+	UAHMENUITEM umi;
+} UAHDRAWMENUITEM;
+
+// the MEASUREITEMSTRUCT is intended to be filled with the size of the item
+// height appears to be ignored, but width can be modified
+typedef struct tagUAHMEASUREMENUITEM
+{
+	MEASUREITEMSTRUCT mis;
+	UAHMENU um;
+	UAHMENUITEM umi;
+} UAHMEASUREMENUITEM;
+
+
+void InitMenuBar(const HWND hWnd, const int subclassId)
+{
+	SetWindowSubclass(hWnd, [](HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR /*uIdSubclass*/, DWORD_PTR dwRefData) -> LRESULT {
+		if (g_darkModeSupported && g_darkModeEnabled)
+		{
+			switch (uMsg)
+			{
+			case WM_UAHDRAWMENU:
+			{
+				UAHMENU* pUDM = (UAHMENU*)lParam;
+				RECT rc = { 0 };
+
+				// get the menubar rect
+				{
+					MENUBARINFO mbi = { sizeof(mbi) };
+					GetMenuBarInfo(hWnd, OBJID_MENU, 0, &mbi);
+
+					RECT rcWindow;
+					GetWindowRect(hWnd, &rcWindow);
+
+					// the rcBar is offset by the window rect
+					rc = mbi.rcBar;
+					OffsetRect(&rc, -rcWindow.left, -rcWindow.top);
+
+					rc.top -= 1;
+				}
+
+				if (!g_menuTheme) {
+					g_menuTheme = OpenThemeData(hWnd, L"Menu");
+				}
+
+				DrawThemeBackground(g_menuTheme, pUDM->hdc, MENU_POPUPITEM, MPI_NORMAL, &rc, nullptr);
+
+				return 0;
+			}
+			case WM_UAHDRAWMENUITEM:
+			{
+				UAHDRAWMENUITEM* pUDMI = (UAHDRAWMENUITEM*)lParam;
+
+				// get the menu item string
+				wchar_t menuString[256] = { 0 };
+				MENUITEMINFO mii = { sizeof(mii), MIIM_STRING };
+				{
+					mii.dwTypeData = menuString;
+					mii.cch = (sizeof(menuString) / 2) - 1;
+
+					GetMenuItemInfo(pUDMI->um.hmenu, pUDMI->umi.iPosition, TRUE, &mii);
+				}
+
+				// get the item state for drawing
+
+				DWORD dwFlags = DT_CENTER | DT_SINGLELINE | DT_VCENTER;
+
+				int iTextStateID = 0;
+				int iBackgroundStateID = 0;
+				{
+					if ((pUDMI->dis.itemState & ODS_INACTIVE) | (pUDMI->dis.itemState & ODS_DEFAULT)) {
+						// normal display
+						iTextStateID = MPI_NORMAL;
+						iBackgroundStateID = MPI_NORMAL;
+					}
+					if (pUDMI->dis.itemState & ODS_HOTLIGHT) {
+						// hot tracking
+						iTextStateID = MPI_HOT;
+						iBackgroundStateID = MPI_HOT;
+					}
+					if (pUDMI->dis.itemState & ODS_SELECTED) {
+						// clicked -- MENU_POPUPITEM has no state for this, though MENU_BARITEM does
+						iTextStateID = MPI_HOT;
+						iBackgroundStateID = MPI_HOT;
+					}
+					if ((pUDMI->dis.itemState & ODS_GRAYED) || (pUDMI->dis.itemState & ODS_DISABLED)) {
+						// disabled / grey text
+						iTextStateID = MPI_DISABLED;
+						iBackgroundStateID = MPI_DISABLED;
+					}
+					if (pUDMI->dis.itemState & ODS_NOACCEL) {
+						dwFlags |= DT_HIDEPREFIX;
+					}
+				}
+
+				if (!g_menuTheme) {
+					g_menuTheme = OpenThemeData(hWnd, L"Menu");
+				}
+
+				DrawThemeBackground(g_menuTheme, pUDMI->um.hdc, MENU_POPUPITEM, iBackgroundStateID, &pUDMI->dis.rcItem, nullptr);
+				DrawThemeText(g_menuTheme, pUDMI->um.hdc, MENU_POPUPITEM, iTextStateID, menuString, mii.cch, dwFlags, 0, &pUDMI->dis.rcItem);
+
+				return 0;
+			}
+			case WM_THEMECHANGED:
+			{
+				if (g_menuTheme) {
+					CloseThemeData(g_menuTheme);
+					g_menuTheme = nullptr;
+				}
+				break;
+			}
+			default:
+				break;
+			}
+		}
+		return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+		}, subclassId, 0);
+}

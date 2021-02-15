@@ -2,6 +2,7 @@
 #pragma once
 
 #include "IatHook.h"
+#include "UAHMenuBar.h"
 
 enum IMMERSIVE_HC_CACHE_MODE
 {
