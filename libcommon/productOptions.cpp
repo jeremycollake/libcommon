@@ -12,12 +12,44 @@ ProductOptions::ProductOptions(const HKEY hHive, const WCHAR* pwszProductName, c
 }
 
 // force a reload of any referenced options
-void ProductOptions::refresh()
+void ProductOptions::clear_cache()
 {
 	mapBools.clear();
 	mapstr.clear();
 	mapuint32.clear();
 	mapuint64.clear();
+}
+
+void ProductOptions::clear_cached_value(const WCHAR* pwszValueName)
+{
+	{
+		auto i = mapBools.find(pwszValueName);
+		if (i != mapBools.end())
+		{
+			mapBools.erase(i);
+		}
+	}
+	{
+		auto i = mapstr.find(pwszValueName);
+		if (i != mapstr.end())
+		{
+			mapstr.erase(i);
+		}
+	}
+	{
+		auto i = mapuint32.find(pwszValueName);
+		if (i != mapuint32.end())
+		{
+			mapuint32.erase(i);
+		}
+	}
+	{
+		auto i = mapuint64.find(pwszValueName);
+		if (i != mapuint64.end())
+		{
+			mapuint64.erase(i);
+		}
+	}
 }
 
 bool& ProductOptions::operator[] (const WCHAR* pwszValueName)
@@ -253,8 +285,9 @@ bool ProductOptions::read_value(const WCHAR* pwszValueName, ATL::CString& csResu
 bool ProductOptions::write_value(const WCHAR* pwszValueName, const bool bVal)
 {
 	// boolean stored as REG_DWORD, defer to it
-	unsigned dwVal = bVal ? 1 : 0;
-	return write_value(pwszValueName, dwVal);
+	unsigned dwVal = bVal ? 1 : 0;	
+	bool bR = write_value(pwszValueName, dwVal);	
+	return bR;
 }
 
 bool ProductOptions::write_value(const WCHAR* pwszValueName, const unsigned nVal)
@@ -273,6 +306,7 @@ bool ProductOptions::write_value(const WCHAR* pwszValueName, const unsigned nVal
 		}
 		RegCloseKey(hKey);
 	}
+	clear_cached_value(pwszValueName);
 	return bRet;
 }
 
@@ -292,6 +326,7 @@ bool ProductOptions::write_value(const WCHAR* pwszValueName, const unsigned long
 		}
 		RegCloseKey(hKey);
 	}
+	clear_cached_value(pwszValueName);
 	return bRet;
 
 }
@@ -323,7 +358,7 @@ bool ProductOptions::write_value(const WCHAR* pwszValueName, const WCHAR* val)
 		}
 		RegCloseKey(hKey);
 	}
-
+	clear_cached_value(pwszValueName);
 	return bRet;
 }
 
@@ -339,6 +374,7 @@ bool ProductOptions::delete_value(const WCHAR* pwszValueName)
 	{
 		if (RegDeleteValue(hKey, pwszValueName) == ERROR_SUCCESS)
 		{
+			clear_cached_value(pwszValueName);
 			bR = true;
 		}
 		RegCloseKey(hKey);

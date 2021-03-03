@@ -41,7 +41,9 @@ public:
 	ProductOptions(const HKEY hHive, const WCHAR* pwszProductName, const DWORD Wow64Access=0);
 
 	// force a reload of any referenced options
-	void refresh();
+	void clear_cache();
+	// remove a specific option from cache
+	void clear_cached_value(const WCHAR* pwszValueName);
 
 	// returns false if doesn't exist in registry
 	bool& operator[] (const WCHAR* pwszValueName);	// let boolvals (only) get referenced by subscript
