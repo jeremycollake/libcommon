@@ -9,7 +9,7 @@
 #include <mutex>
 
 class ProcessCache
-{	
+{
 public:
 	enum valueName {
 		CacheValThreadCount,
@@ -22,7 +22,7 @@ private:
 	std::unordered_map<unsigned int, double> mapAverageCPU;
 	std::unordered_map<unsigned int, unsigned __int64> mapPrivateWorkingSet;
 	std::unordered_map<unsigned int, unordered_map<valueName, unsigned long>> mapNamedULONGs;
-	std::unordered_map<unsigned int, unordered_map<valueName, unsigned __int64>> mapNamedULONGLONGs;	;
+	std::unordered_map<unsigned int, unordered_map<valueName, unsigned __int64>> mapNamedULONGLONGs; ;
 public:
 	void erase(const unsigned int pid)
 	{
@@ -31,9 +31,9 @@ public:
 		mapAverageCPU.erase(pid);
 		mapPrivateWorkingSet.erase(pid);
 		mapNamedULONGs.erase(pid);
-		mapNamedULONGLONGs.erase(pid);		
+		mapNamedULONGLONGs.erase(pid);
 	}
-		
+
 	void set_byName(const unsigned int pid, const valueName valName, const unsigned long nVal)
 	{
 		std::lock_guard<std::mutex> lock(prot);
@@ -41,20 +41,20 @@ public:
 		// a safety catch for infinite growth (client didn't call erase)
 		_ASSERT(mapNamedULONGs.size() < 1000 && mapNamedULONGs[pid].size() < 1000);
 	}
-	bool get_byName(const unsigned int pid, const valueName valName, unsigned long &nVal)
+	bool get_byName(const unsigned int pid, const valueName valName, unsigned long& nVal)
 	{
 		std::lock_guard<std::mutex> lock(prot);
 		auto& i = mapNamedULONGs.find(pid);
 		if (i != mapNamedULONGs.end())
-		{			
+		{
 			auto i2 = i->second.find(valName);
 			if (i2 != i->second.end())
 			{
 				nVal = i2->second;
 				return true;
-			}			
+			}
 		}
-		nVal = 0;		
+		nVal = 0;
 		return false;
 	}
 
@@ -65,7 +65,7 @@ public:
 		// a safety catch for infinite growth (client didn't call erase)
 		_ASSERT(mapNamedULONGLONGs.size() < 1000 && mapNamedULONGLONGs[pid].size() < 1000);
 	}
-	
+
 	bool get_byName(const unsigned int pid, const valueName valName, unsigned __int64& nVal)
 	{
 		std::lock_guard<std::mutex> lock(prot);
@@ -78,7 +78,7 @@ public:
 				nVal = i2->second;
 				return true;
 			}
-		}		
+		}
 		nVal = 0;
 		return false;
 	}
