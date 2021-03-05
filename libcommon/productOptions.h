@@ -1,6 +1,6 @@
 #pragma once
 /*
-* (c)2020 Jeremy Collake <jeremy@bitsum.com>
+* (c)2021 Jeremy Collake <jeremy@bitsum.com>
 * https://bitsum.com
 * See LICENSE.TXT
 */
@@ -50,19 +50,19 @@ public:
 
 	// gets returns false if default used, otherwise true
 	bool get_value(const WCHAR* pwszValueName, bool& bVal, const bool bDefault=false);
-	bool get_value(const WCHAR* pwszValueName, BOOL& bVal, const BOOL bDefault=FALSE);
+	bool get_value(const WCHAR* pwszValueName, int& nVal, const int nDefault=0);
 	bool get_value(const WCHAR* pwszValueName, unsigned& nVal, const unsigned nDefault=0);
-	bool get_value(const WCHAR* pwszValueName, DWORD& nVal, const DWORD nDefault=0);
+	bool get_value(const WCHAR* pwszValueName, DWORD& nVal, const DWORD nDefault=0);	
 	bool get_value(const WCHAR* pwszValueName, unsigned long long &nVal, const unsigned long long nDefault=0);
 	bool get_value(const WCHAR* pwszValueName, ATL::CString& csVal, const WCHAR *pwszDefault=NULL);
 
 	// returns false if registry write failed
 	bool set_value(const WCHAR* pwszValueName, const bool bVal);
-	bool set_value(const WCHAR* pwszValueName, const BOOL bVal);
+	bool set_value(const WCHAR* pwszValueName, const int nVal);
 	bool set_value(const WCHAR* pwszValueName, const unsigned nVal);
 	bool set_value(const WCHAR* pwszValueName, const DWORD nVal);
 	bool set_value(const WCHAR* pwszValueName, const unsigned long long nVal);
-	bool set_value(const WCHAR* pwszValueName, const WCHAR* val);
+	bool set_value(const WCHAR* pwszValueName, const WCHAR* val);	
 
 	bool delete_value(const WCHAR* pwszValueName);
 };

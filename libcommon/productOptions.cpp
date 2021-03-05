@@ -1,5 +1,5 @@
 /*
-* (c)2020 Jeremy Collake <jeremy@bitsum.com>
+* (c)2021 Jeremy Collake <jeremy@bitsum.com>
 * https://bitsum.com/portfolio/coreprio
 * See LICENSE.TXT
 */
@@ -85,9 +85,9 @@ bool ProductOptions::get_value(const WCHAR* pwszValueName, bool& bVal, const boo
 	return true;
 }
 
-bool ProductOptions::get_value(const WCHAR* pwszValueName, BOOL& bVal, const BOOL bDefault)
+bool ProductOptions::get_value(const WCHAR* pwszValueName, int& nVal, const int nDefault)
 {
-	return get_value(pwszValueName, reinterpret_cast<bool&>(bVal), static_cast<bool>(bDefault));
+	return get_value(pwszValueName, reinterpret_cast<DWORD&>(nVal), static_cast<const DWORD>(nDefault));
 }
 
 bool ProductOptions::get_value(const WCHAR* pwszValueName, unsigned& nVal, unsigned nDefault)
@@ -159,9 +159,9 @@ bool ProductOptions::set_value(const WCHAR* pwszValueName, const bool bVal)
 	return write_value(pwszValueName, bVal);
 }
 
-bool ProductOptions::set_value(const WCHAR* pwszValueName, const BOOL bVal)
+bool ProductOptions::set_value(const WCHAR* pwszValueName, const int nVal)
 {
-	return set_value(pwszValueName, static_cast<const bool>(bVal));
+	return set_value(pwszValueName, static_cast<const DWORD>(nVal));
 }
 
 bool ProductOptions::set_value(const WCHAR* pwszValueName, const unsigned nVal)
@@ -170,9 +170,9 @@ bool ProductOptions::set_value(const WCHAR* pwszValueName, const unsigned nVal)
 	return write_value(pwszValueName, nVal);
 }
 
-bool ProductOptions::set_value(const WCHAR* pwszValueName, const DWORD bVal)
+bool ProductOptions::set_value(const WCHAR* pwszValueName, const DWORD nVal)
 {
-	return set_value(pwszValueName, static_cast<const unsigned>(bVal));
+	return set_value(pwszValueName, static_cast<const unsigned>(nVal));
 }
 
 bool ProductOptions::set_value(const WCHAR* pwszValueName, const unsigned long long nVal)
