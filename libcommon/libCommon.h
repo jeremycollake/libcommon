@@ -7,6 +7,8 @@
 void ListView_SetSingleSelection(const HWND hWndListview, const int nIndex);
 void ListView_UnselectAll(const HWND hWndListview);
 ATL::CString ListView_GetTextAtPosition(const HWND hWndListview, const int nRow, const int nCol);
+bool ListView_DoesTextExistAtColumnInAnyRow(const HWND hWndListview, const int nColumn, const WCHAR* pwszText);
+int ListView_GetRowContainingTextAtColumn(const HWND hWndListview, const int nColumn, const WCHAR* pwszText);
 
 bool IsFileWritable(const WCHAR* pwszFilepath);
 

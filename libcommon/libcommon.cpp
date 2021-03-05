@@ -12,8 +12,8 @@
 void ListView_SetSingleSelection(const HWND hWndListview, const int nIndex)
 {
 	ListView_UnselectAll(hWndListview);
-	ListView_EnsureVisible(hWndListview, nIndex, FALSE);	
-	ListView_SetItemState(hWndListview, nIndex, LVIS_FOCUSED | LVIS_SELECTED, LVIS_FOCUSED | LVIS_SELECTED);	
+	ListView_EnsureVisible(hWndListview, nIndex, FALSE);
+	ListView_SetItemState(hWndListview, nIndex, LVIS_FOCUSED | LVIS_SELECTED, LVIS_FOCUSED | LVIS_SELECTED);
 	ListView_SetSelectionMark(hWndListview, nIndex);
 }
 
@@ -27,7 +27,7 @@ void ListView_UnselectAll(const HWND hWndListview)
 		{
 			ListView_SetItemState(hWndListview, nSearchPos, 0, LVIS_FOCUSED | LVIS_SELECTED);
 		}
-	} while (nSearchPos != -1);	
+	} while (nSearchPos != -1);
 }
 
 ATL::CString ListView_GetTextAtPosition(const HWND hWndListview, const int nRow, const int nCol)
@@ -44,8 +44,31 @@ ATL::CString ListView_GetTextAtPosition(const HWND hWndListview, const int nRow,
 	return wszText;
 }
 
-bool IsFileWritable(const WCHAR *pwszFilepath)
-{	
+bool ListView_DoesTextExistAtColumnInAnyRow(const HWND hWndListview, const int nColumn, const WCHAR* pwszText)
+{
+	if (ListView_GetRowContainingTextAtColumn(hWndListview, nColumn, pwszText) == -1)
+	{
+		return false;
+	}
+	return true;
+}
+
+int ListView_GetRowContainingTextAtColumn(const HWND hWndListview, const int nColumn, const WCHAR* pwszText)
+{
+	int nRowCount = ListView_GetItemCount(hWndListview);
+	for (int nI = 0; nI < nRowCount; nI++)
+	{
+		CString csText = ListView_GetTextAtPosition(hWndListview, nI, nColumn);
+		if (csText.CompareNoCase(pwszText) == 0)
+		{
+			return nI;
+		}
+	}
+	return -1;
+}
+
+bool IsFileWritable(const WCHAR* pwszFilepath)
+{
 	// if doesn't exist, return true
 	if (GetFileAttributes(pwszFilepath) == INVALID_FILE_ATTRIBUTES)
 	{
@@ -71,21 +94,21 @@ DWORD GetWindows10Build()
 			DWORD major, minor;
 			RtlGetNtVersionNumbers(&major, &minor, &dwBulldNum);
 			dwBulldNum &= ~0xF0000000;
-		}		
-	}	
+		}
+	}
 	return dwBulldNum;
 }
 
 void RemoveTrailingBackslash(ATL::CString& csStr)
 {
-	int nLen = csStr.GetLength();	
+	int nLen = csStr.GetLength();
 	if (nLen)
 	{
 		if (csStr[nLen - 1] == '\\' || csStr[nLen - 1] == '/')
 		{
-			csStr.Truncate(nLen - 1);			
+			csStr.Truncate(nLen - 1);
 		}
-	}	
+	}
 }
 
 void AppendBackslashIfMissing(ATL::CString& csStr)
@@ -286,16 +309,16 @@ BOOL IsElevated()
 {
 	BOOL fRet = FALSE;
 	HANDLE hToken = NULL;
-	if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken)) 
+	if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken))
 	{
 		TOKEN_ELEVATION Elevation;
 		DWORD cbSize = sizeof(TOKEN_ELEVATION);
-		if (GetTokenInformation(hToken, TokenElevation, &Elevation, sizeof(Elevation), &cbSize)) 
+		if (GetTokenInformation(hToken, TokenElevation, &Elevation, sizeof(Elevation), &cbSize))
 		{
 			fRet = Elevation.TokenIsElevated;
 		}
 	}
-	if (hToken) 
+	if (hToken)
 	{
 		CloseHandle(hToken);
 	}
@@ -306,19 +329,19 @@ BOOL IsElevated()
 // see https://stackoverflow.com/questions/9912534/how-to-create-a-new-process-with-a-lower-integrity-level-il
 // "There appears to be a bug in the example code, since the correct SID for low integrity level is S-1-16-4096 rather than S-1-16-1024, but you'll want medium integrity level anyway, which is S-1-16-8192. These can be found here."
 // https://support.microsoft.com/en-us/help/243330/well-known-security-identifiers-in-windows-operating-systems
-BOOL CreateMediumProcess(const WCHAR *pwszProcessName, WCHAR *pwszCommandLine, const WCHAR *pwszCWD, PROCESS_INFORMATION *pInfo)
-{	
+BOOL CreateMediumProcess(const WCHAR* pwszProcessName, WCHAR* pwszCommandLine, const WCHAR* pwszCWD, PROCESS_INFORMATION* pInfo)
+{
 	BOOL                  fRet;
 	HANDLE                hToken = NULL;
 	HANDLE                hNewToken = NULL;
 	PSID                  pIntegritySid = NULL;
-	TOKEN_MANDATORY_LABEL TIL = { 0 };	
-	STARTUPINFO           StartupInfo = { 0 };	
+	TOKEN_MANDATORY_LABEL TIL = { 0 };
+	STARTUPINFO           StartupInfo = { 0 };
 	_ASSERT(pInfo);
 	memset(pInfo, 0, sizeof(PROCESS_INFORMATION));
 
 	// Medium integrity SID
-	WCHAR wszIntegritySid[20] = L"S-1-16-4096";	
+	WCHAR wszIntegritySid[20] = L"S-1-16-4096";
 
 	fRet = OpenProcessToken(GetCurrentProcess(),
 		TOKEN_DUPLICATE |
@@ -343,7 +366,7 @@ BOOL CreateMediumProcess(const WCHAR *pwszProcessName, WCHAR *pwszCommandLine, c
 	{
 		goto CleanExit;
 	}
-	
+
 	fRet = ConvertStringSidToSid(wszIntegritySid, &pIntegritySid);
 
 	if (!fRet)
@@ -374,7 +397,7 @@ BOOL CreateMediumProcess(const WCHAR *pwszProcessName, WCHAR *pwszCommandLine, c
 
 	fRet = CreateProcessAsUser(hNewToken,
 		pwszProcessName,
-		pwszCommandLine,		
+		pwszCommandLine,
 		NULL,
 		NULL,
 		FALSE,
