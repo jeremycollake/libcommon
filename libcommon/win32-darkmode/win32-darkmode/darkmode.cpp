@@ -112,7 +112,7 @@ void FixDarkScrollBar()
 }
 
 #define LAST_VERIFIED_SUPPORTED_DARKMODE_WIN10_BUILD 21286
-#define BUILD_ALLOWABLE_MARGIN 1500		// max build # over last known supported
+#define BUILD_ALLOWABLE_MARGIN 3000		// max build # over last known supported
 
 bool CheckWin10BuildNumber(const DWORD dwBuildNumber, const bool bAllowFutureWin10Builds_Unsafe)
 {	
@@ -288,6 +288,7 @@ void InitMenuBar(const HWND hWnd, const int subclassId)
 			{
 			case WM_UAHDRAWMENU:
 			{
+				LIBCOMMON_DEBUG_PRINT(L"WM_UAHDRAWMENU");
 				UAHMENU* pUDM = (UAHMENU*)lParam;
 				RECT rc = { 0 };
 
@@ -308,14 +309,19 @@ void InitMenuBar(const HWND hWnd, const int subclassId)
 
 				if (!g_menuTheme) {
 					g_menuTheme = OpenThemeData(hWnd, L"Menu");
+					_ASSERT(g_menuTheme);
 				}
 
 				DrawThemeBackground(g_menuTheme, pUDM->hdc, MENU_POPUPITEM, MPI_NORMAL, &rc, nullptr);
 
+				//InvalidateRect(hWnd, nullptr, TRUE);
+				//RedrawWindow(hWnd, NULL, NULL, RDW_INTERNALPAINT);
+
 				return 0;
-			}
+			}			
 			case WM_UAHDRAWMENUITEM:
 			{
+				LIBCOMMON_DEBUG_PRINT(L"WM_UAHDRAWMENUITEM");
 				UAHDRAWMENUITEM* pUDMI = (UAHDRAWMENUITEM*)lParam;
 
 				// get the menu item string
@@ -362,11 +368,15 @@ void InitMenuBar(const HWND hWnd, const int subclassId)
 
 				if (!g_menuTheme) {
 					g_menuTheme = OpenThemeData(hWnd, L"Menu");
+					_ASSERT(g_menuTheme);
 				}
 
 				DrawThemeBackground(g_menuTheme, pUDMI->um.hdc, MENU_POPUPITEM, iBackgroundStateID, &pUDMI->dis.rcItem, nullptr);
 				DrawThemeText(g_menuTheme, pUDMI->um.hdc, MENU_POPUPITEM, iTextStateID, menuString, mii.cch, dwFlags, 0, &pUDMI->dis.rcItem);
 
+				//InvalidateRect(hWnd, &pUDMI->dis.rcItem, TRUE);
+				//RedrawWindow(hWnd, &pUDMI->dis.rcItem, NULL, RDW_INTERNALPAINT|RDW_ERASENOW|RDW_UPDATENOW);
+				
 				return 0;
 			}
 			case WM_THEMECHANGED:
