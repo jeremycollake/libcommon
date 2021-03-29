@@ -14,7 +14,8 @@ public:
 	enum valueName {
 		CacheValThreadCount,
 		CacheValIODelta,
-		CacheRunningState
+		CacheRunningState,
+		CacheCPUTimeTotal
 	};
 private:
 	std::mutex prot;
