@@ -282,7 +282,8 @@ typedef struct tagUAHMEASUREMENUITEM
 void InitMenuBar(const HWND hWnd, const int subclassId)
 {
 	SetWindowSubclass(hWnd, [](HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR /*uIdSubclass*/, DWORD_PTR dwRefData) -> LRESULT {
-		if (g_darkModeSupported && g_darkModeEnabled)
+		if (g_darkModeSupported && g_darkModeEnabled
+			&& _ShouldAppsUseDarkMode && _ShouldAppsUseDarkMode()) // see painting issue with this code when app mode is non-dark - https://github.com/jeremycollake/processlasso/issues/1339 and https://github.com/ysc3839/win32-darkmode/pull/17#issuecomment-845428664
 		{
 			switch (uMsg)
 			{
@@ -314,11 +315,8 @@ void InitMenuBar(const HWND hWnd, const int subclassId)
 
 				DrawThemeBackground(g_menuTheme, pUDM->hdc, MENU_POPUPITEM, MPI_NORMAL, &rc, nullptr);
 
-				//InvalidateRect(hWnd, nullptr, TRUE);
-				//RedrawWindow(hWnd, NULL, NULL, RDW_INTERNALPAINT);
-
 				return 0;
-			}			
+			}
 			case WM_UAHDRAWMENUITEM:
 			{
 				LIBCOMMON_DEBUG_PRINT(L"WM_UAHDRAWMENUITEM");
@@ -374,17 +372,16 @@ void InitMenuBar(const HWND hWnd, const int subclassId)
 				DrawThemeBackground(g_menuTheme, pUDMI->um.hdc, MENU_POPUPITEM, iBackgroundStateID, &pUDMI->dis.rcItem, nullptr);
 				DrawThemeText(g_menuTheme, pUDMI->um.hdc, MENU_POPUPITEM, iTextStateID, menuString, mii.cch, dwFlags, 0, &pUDMI->dis.rcItem);
 
-				//InvalidateRect(hWnd, &pUDMI->dis.rcItem, TRUE);
-				//RedrawWindow(hWnd, &pUDMI->dis.rcItem, NULL, RDW_INTERNALPAINT|RDW_ERASENOW|RDW_UPDATENOW);
-				
 				return 0;
 			}
 			case WM_THEMECHANGED:
 			{
+				LIBCOMMON_DEBUG_PRINT(L"dark menu bar, WM_THEMECHANGED");
 				if (g_menuTheme) {
 					CloseThemeData(g_menuTheme);
 					g_menuTheme = nullptr;
 				}
+				// propogate the message to DefSubclassProc
 				break;
 			}
 			default:
