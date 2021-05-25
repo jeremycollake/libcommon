@@ -102,3 +102,15 @@ void InitDarkMode(const bool bAllowFutureWin10Builds_Unsafe = false);
 
 // intended for use to show user message box allowing over-ride
 bool IsWindowsBuildNewerThanKnownDarkModeCompatible();
+
+typedef struct tagDARKSUBCLASSPAINTINFO
+{
+	HBRUSH hBrushBackground;
+	HBRUSH hBrushDivider;
+	HFONT hFont;
+	COLORREF colorText;	
+} DARKSUBCLASSPAINTINFO;
+
+bool ShouldThisAppuseDarkModeNow();
+void InitDarkStatusBar(const HWND hWnd, const int subclassId, DARKSUBCLASSPAINTINFO* pDarkInfo, bool bRemoveOnly=false);
+void DeinitDarkStatusBar(const HWND hWnd, const int subclassId);

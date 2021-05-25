@@ -278,12 +278,16 @@ typedef struct tagUAHMEASUREMENUITEM
 	UAHMENUITEM umi;
 } UAHMEASUREMENUITEM;
 
+bool ShouldThisAppuseDarkModeNow()
+{	
+	return (g_darkModeSupported && g_darkModeEnabled
+		&& _ShouldAppsUseDarkMode && _ShouldAppsUseDarkMode());	// see painting issue with this code when app mode is non-dark - https://github.com/jeremycollake/processlasso/issues/1339 and https://github.com/ysc3839/win32-darkmode/pull/17#issuecomment-845428664
+}
 
 void InitMenuBar(const HWND hWnd, const int subclassId)
 {
-	SetWindowSubclass(hWnd, [](HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR /*uIdSubclass*/, DWORD_PTR dwRefData) -> LRESULT {
-		if (g_darkModeSupported && g_darkModeEnabled
-			&& _ShouldAppsUseDarkMode && _ShouldAppsUseDarkMode()) // see painting issue with this code when app mode is non-dark - https://github.com/jeremycollake/processlasso/issues/1339 and https://github.com/ysc3839/win32-darkmode/pull/17#issuecomment-845428664
+	SetWindowSubclass(hWnd, [](HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData) -> LRESULT {
+		if (ShouldThisAppuseDarkModeNow()) 
 		{
 			switch (uMsg)
 			{
@@ -390,4 +394,113 @@ void InitMenuBar(const HWND hWnd, const int subclassId)
 		}
 		return DefSubclassProc(hWnd, uMsg, wParam, lParam);
 		}, subclassId, 0);
+} 
+
+// dark mode status bar code
+// derived from Azdm's work at https://github.com/notepad-plus-plus/notepad-plus-plus/pull/9587/commits/ac8d27714add2e4f9eb0d79bbbefe60883689d6c
+
+// this subclass not a lambda so it can be removed (RemoveWindowSubclass matches on combo of subclassId and callback address)
+LRESULT CALLBACK StatusBarSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
+{
+	auto pDarkInfo = (DARKSUBCLASSPAINTINFO*)dwRefData;
+	switch (uMsg) 
+	{
+	case WM_ERASEBKGND:
+	{
+		if (!ShouldThisAppuseDarkModeNow())
+		{
+			return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+		}
+
+		RECT rc;
+		GetClientRect(hWnd, &rc);
+		FillRect((HDC)wParam, &rc, pDarkInfo->hBrushBackground);
+		return TRUE;
+	}
+	case WM_PAINT:
+	{
+		if (!ShouldThisAppuseDarkModeNow())
+		{
+			return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+		}
+
+		struct {
+			int horizontal;
+			int vertical;
+			int between;
+		} borders = { 0 };
+
+		SendMessage(hWnd, SB_GETBORDERS, 0, (LPARAM)&borders);
+
+		PAINTSTRUCT ps;
+		HDC hdc = BeginPaint(hWnd, &ps);
+
+		HFONT holdFont = (HFONT)::SelectObject(hdc, pDarkInfo->hFont);
+
+		RECT rcClient;
+		GetClientRect(hWnd, &rcClient);
+
+		FillRect(hdc, &ps.rcPaint, pDarkInfo->hBrushBackground);
+
+		int nParts = static_cast<int>(SendMessage(hWnd, SB_GETPARTS, 0, 0));
+		std::vector<wchar_t> str;
+		for (int i = 0; i < nParts; ++i)
+		{
+			RECT rcPart = { 0 };
+			SendMessage(hWnd, SB_GETRECT, i, (LPARAM)&rcPart);
+			RECT rcIntersect = { 0 };
+			if (!IntersectRect(&rcIntersect, &rcPart, &ps.rcPaint))
+			{
+				continue;
+			}
+
+			RECT rcDivider = { rcPart.right - borders.vertical, rcPart.top, rcPart.right, rcPart.bottom };
+
+			DWORD cchText = LOWORD(SendMessage(hWnd, SB_GETTEXTLENGTH, i, 0));
+			str.resize(cchText + 1);
+			SendMessage(hWnd, SB_GETTEXT, i, (LPARAM)str.data());
+			SetBkMode(hdc, TRANSPARENT);
+			SetTextColor(hdc, pDarkInfo->colorText);
+
+			rcPart.left += borders.between;
+			rcPart.right -= borders.vertical;
+
+			DrawText(hdc, str.data(), cchText, &rcPart, DT_SINGLELINE | DT_VCENTER | DT_LEFT);
+
+			FillRect(hdc, &rcDivider, pDarkInfo->hBrushDivider);
+		}
+
+		::SelectObject(hdc, holdFont);
+
+		EndPaint(hWnd, &ps);
+		return 0;
+	}
+	}
+	return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+}
+
+void InitDarkStatusBar(const HWND hWnd, const int subclassId, DARKSUBCLASSPAINTINFO *pDarkInfo, bool bRemoveOnly)
+{	
+	static DARKSUBCLASSPAINTINFO* pDarkPaintInfo = nullptr;
+	if (pDarkPaintInfo)
+	{
+		DeleteObject(pDarkPaintInfo->hBrushBackground);
+		DeleteObject(pDarkPaintInfo->hBrushDivider);
+		delete pDarkPaintInfo;
+		pDarkPaintInfo = nullptr;
+
+		// ensure we remove any prior instance
+		RemoveWindowSubclass(hWnd, StatusBarSubclassProc, subclassId);
+	}		
+	
+	if (!bRemoveOnly && pDarkInfo)
+	{
+		pDarkPaintInfo = new DARKSUBCLASSPAINTINFO { pDarkInfo->hBrushBackground, pDarkInfo->hBrushDivider, pDarkInfo->hFont, pDarkInfo->colorText };
+		SetWindowSubclass(hWnd, StatusBarSubclassProc, subclassId, reinterpret_cast<DWORD_PTR>(pDarkPaintInfo));
+	}
+}
+
+void DeinitDarkStatusBar(const HWND hWnd, const int subclassId)
+{
+	InitDarkStatusBar(hWnd, subclassId, nullptr, true);
 }
