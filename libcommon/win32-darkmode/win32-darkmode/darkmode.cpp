@@ -284,7 +284,7 @@ bool ShouldThisAppuseDarkModeNow()
 		&& _ShouldAppsUseDarkMode && _ShouldAppsUseDarkMode());	// see painting issue with this code when app mode is non-dark - https://github.com/jeremycollake/processlasso/issues/1339 and https://github.com/ysc3839/win32-darkmode/pull/17#issuecomment-845428664
 }
 
-void InitMenuBar(const HWND hWnd, const int subclassId)
+void InitDarkMenuBar(const HWND hWnd, const int subclassId)
 {
 	SetWindowSubclass(hWnd, [](HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData) -> LRESULT {
 		if (ShouldThisAppuseDarkModeNow()) 

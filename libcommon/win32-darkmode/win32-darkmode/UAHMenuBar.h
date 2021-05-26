@@ -1,3 +1,3 @@
 #pragma once
 
-void InitMenuBar(const HWND hWnd, const int subclassId);
+void InitDarkMenuBar(const HWND hWnd, const int subclassId);
