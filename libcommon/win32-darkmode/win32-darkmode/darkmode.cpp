@@ -111,8 +111,8 @@ void FixDarkScrollBar()
 	}
 }
 
-#define LAST_VERIFIED_SUPPORTED_DARKMODE_WIN10_BUILD 21354
-#define BUILD_ALLOWABLE_MARGIN 3000		// max build # over last known supported
+#define LAST_VERIFIED_SUPPORTED_DARKMODE_WIN10_BUILD 21387
+#define BUILD_ALLOWABLE_MARGIN 5000		// max build # over last known supported
 
 bool CheckWin10BuildNumber(const DWORD dwBuildNumber, const bool bAllowFutureWin10Builds_Unsafe)
 {	
