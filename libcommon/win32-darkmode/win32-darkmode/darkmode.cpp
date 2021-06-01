@@ -1,6 +1,5 @@
 // from https://github.com/ysc3839/win32-darkmode.git
-#include "pch.h"
-#include <windows.h>
+#include "../../pch.h"
 #include "darkmode.h"
 
 fnSetWindowCompositionAttribute _SetWindowCompositionAttribute = nullptr;
@@ -278,7 +277,7 @@ typedef struct tagUAHMEASUREMENUITEM
 	UAHMENUITEM umi;
 } UAHMEASUREMENUITEM;
 
-bool ShouldThisAppuseDarkModeNow()
+bool ShouldThisAppUseDarkModeNow()
 {	
 	return (g_darkModeSupported && g_darkModeEnabled
 		&& _ShouldAppsUseDarkMode && _ShouldAppsUseDarkMode());	// see painting issue with this code when app mode is non-dark - https://github.com/jeremycollake/processlasso/issues/1339 and https://github.com/ysc3839/win32-darkmode/pull/17#issuecomment-845428664
@@ -287,7 +286,7 @@ bool ShouldThisAppuseDarkModeNow()
 void InitDarkMenuBar(const HWND hWnd, const int subclassId)
 {
 	SetWindowSubclass(hWnd, [](HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData) -> LRESULT {
-		if (ShouldThisAppuseDarkModeNow()) 
+		if (ShouldThisAppUseDarkModeNow()) 
 		{
 			switch (uMsg)
 			{
@@ -406,74 +405,72 @@ LRESULT CALLBACK StatusBarSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
 	switch (uMsg) 
 	{
 	case WM_ERASEBKGND:
-	{
-		if (!ShouldThisAppuseDarkModeNow())
+	{		
+		if (ShouldThisAppUseDarkModeNow())
 		{
-			return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+			RECT rc;
+			GetClientRect(hWnd, &rc);
+			FillRect((HDC)wParam, &rc, pDarkInfo->hBrushBackground);
+			return TRUE;	// non-zero if handled
 		}
-
-		RECT rc;
-		GetClientRect(hWnd, &rc);
-		FillRect((HDC)wParam, &rc, pDarkInfo->hBrushBackground);
-		return TRUE;
+		break;
 	}
 	case WM_PAINT:
 	{
-		if (!ShouldThisAppuseDarkModeNow())
+		if (ShouldThisAppUseDarkModeNow())
 		{
-			return DefSubclassProc(hWnd, uMsg, wParam, lParam);
-		}
+			struct {
+				int horizontal;
+				int vertical;
+				int between;
+			} borders = { 0 };
 
-		struct {
-			int horizontal;
-			int vertical;
-			int between;
-		} borders = { 0 };
+			SendMessage(hWnd, SB_GETBORDERS, 0, (LPARAM)&borders);
 
-		SendMessage(hWnd, SB_GETBORDERS, 0, (LPARAM)&borders);
+			PAINTSTRUCT ps;
+			HDC hdc = BeginPaint(hWnd, &ps);
 
-		PAINTSTRUCT ps;
-		HDC hdc = BeginPaint(hWnd, &ps);
+			HFONT holdFont = (HFONT)::SelectObject(hdc, pDarkInfo->hFont);
 
-		HFONT holdFont = (HFONT)::SelectObject(hdc, pDarkInfo->hFont);
+			RECT rcClient;
+			GetClientRect(hWnd, &rcClient);
 
-		RECT rcClient;
-		GetClientRect(hWnd, &rcClient);
+			FillRect(hdc, &ps.rcPaint, pDarkInfo->hBrushBackground);
 
-		FillRect(hdc, &ps.rcPaint, pDarkInfo->hBrushBackground);
-
-		int nParts = static_cast<int>(SendMessage(hWnd, SB_GETPARTS, 0, 0));
-		std::vector<wchar_t> str;
-		for (int i = 0; i < nParts; ++i)
-		{
-			RECT rcPart = { 0 };
-			SendMessage(hWnd, SB_GETRECT, i, (LPARAM)&rcPart);
-			RECT rcIntersect = { 0 };
-			if (!IntersectRect(&rcIntersect, &rcPart, &ps.rcPaint))
+			int nParts = static_cast<int>(SendMessage(hWnd, SB_GETPARTS, 0, 0));
+			std::vector<wchar_t> str;
+			for (int i = 0; i < nParts; ++i)
 			{
-				continue;
+				RECT rcPart = { 0 };
+				SendMessage(hWnd, SB_GETRECT, i, (LPARAM)&rcPart);
+				RECT rcIntersect = { 0 };
+				if (!IntersectRect(&rcIntersect, &rcPart, &ps.rcPaint))
+				{
+					continue;
+				}
+
+				RECT rcDivider = { rcPart.right - borders.vertical, rcPart.top, rcPart.right, rcPart.bottom };
+
+				DWORD cchText = LOWORD(SendMessage(hWnd, SB_GETTEXTLENGTH, i, 0));
+				str.resize(cchText + 1);
+				SendMessage(hWnd, SB_GETTEXT, i, (LPARAM)str.data());
+				SetBkMode(hdc, TRANSPARENT);
+				SetTextColor(hdc, pDarkInfo->colorText);
+
+				rcPart.left += borders.between;
+				rcPart.right -= borders.vertical;
+
+				DrawText(hdc, str.data(), cchText, &rcPart, DT_SINGLELINE | DT_VCENTER | DT_LEFT);
+
+				FillRect(hdc, &rcDivider, pDarkInfo->hBrushDivider);
 			}
 
-			RECT rcDivider = { rcPart.right - borders.vertical, rcPart.top, rcPart.right, rcPart.bottom };
+			::SelectObject(hdc, holdFont);
 
-			DWORD cchText = LOWORD(SendMessage(hWnd, SB_GETTEXTLENGTH, i, 0));
-			str.resize(cchText + 1);
-			SendMessage(hWnd, SB_GETTEXT, i, (LPARAM)str.data());
-			SetBkMode(hdc, TRANSPARENT);
-			SetTextColor(hdc, pDarkInfo->colorText);
-
-			rcPart.left += borders.between;
-			rcPart.right -= borders.vertical;
-
-			DrawText(hdc, str.data(), cchText, &rcPart, DT_SINGLELINE | DT_VCENTER | DT_LEFT);
-
-			FillRect(hdc, &rcDivider, pDarkInfo->hBrushDivider);
+			EndPaint(hWnd, &ps);
+			return 0;		// 0 if processed
 		}
-
-		::SelectObject(hdc, holdFont);
-
-		EndPaint(hWnd, &ps);
-		return 0;
+		break;
 	}
 	}
 	return DefSubclassProc(hWnd, uMsg, wParam, lParam);
@@ -484,13 +481,13 @@ void InitDarkStatusBar(const HWND hWnd, const int subclassId, DARKSUBCLASSPAINTI
 	static DARKSUBCLASSPAINTINFO* pDarkPaintInfo = nullptr;
 	if (pDarkPaintInfo)
 	{
+		// ensure we remove any prior instance
+		RemoveWindowSubclass(hWnd, StatusBarSubclassProc, subclassId);
+
 		DeleteObject(pDarkPaintInfo->hBrushBackground);
 		DeleteObject(pDarkPaintInfo->hBrushDivider);
 		delete pDarkPaintInfo;
-		pDarkPaintInfo = nullptr;
-
-		// ensure we remove any prior instance
-		RemoveWindowSubclass(hWnd, StatusBarSubclassProc, subclassId);
+		pDarkPaintInfo = nullptr;		
 	}		
 	
 	if (!bRemoveOnly && pDarkInfo)
@@ -504,3 +501,88 @@ void DeinitDarkStatusBar(const HWND hWnd, const int subclassId)
 {
 	InitDarkStatusBar(hWnd, subclassId, nullptr, true);
 }
+
+// dark progress bars
+LRESULT CALLBACK ProgressBarSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
+{
+	auto pColorInfo = (DarkProgressBarBrushes*)dwRefData;
+	switch (uMsg)
+	{			
+	case WM_ERASEBKGND:
+	{		
+		// we paint entire background regardless in WM_PAINT, so this isn't necessary, and is called every time the progressbar value changes
+		return FALSE;		// non-zero if bg painted
+		/*
+		LIBCOMMON_DEBUG_PRINT(L"ProgressBarSubclassProc WM_ERASEBKGND");
+		if (ShouldThisAppUseDarkModeNow())
+		{
+			RECT rc;
+			GetClientRect(hWnd, &rc);
+			FillRect((HDC)wParam, &rc, pColorInfo->hBrushBackground);
+			return TRUE;		// non-zero if bg painted
+		}
+		break;*/
+	}
+	case WM_PAINT:
+	{
+		if (ShouldThisAppUseDarkModeNow())
+		{
+			RECT rcClient;
+			GetClientRect(hWnd, &rcClient);
+
+			PAINTSTRUCT ps;
+			HDC hdc = BeginPaint(hWnd, &ps);
+
+			FillRect(hdc, &rcClient, pColorInfo->hBrushBackground);		// necessary or handled by WM_ERASEBKND? -- issue reported with graphs not going down in value, likely caused when this was disabled
+			FrameRect(hdc, &rcClient, pColorInfo->hBrushBorder);
+
+			const int PB_BORDER_WIDTH = 1;
+			if ((rcClient.bottom - PB_BORDER_WIDTH) > (rcClient.top + PB_BORDER_WIDTH) && (rcClient.right - PB_BORDER_WIDTH) > (rcClient.left + PB_BORDER_WIDTH))
+			{
+				unsigned int nHeight = (rcClient.bottom - PB_BORDER_WIDTH) - (rcClient.top + PB_BORDER_WIDTH);
+				_ASSERT(nHeight > 0 && nHeight < 32 * 1024);
+				PBRANGE pbRange = { 0, 0 };
+				SendMessage(hWnd, PBM_GETRANGE, FALSE, (LPARAM)&pbRange);
+				_ASSERT(pbRange.iHigh > pbRange.iLow);
+				if (pbRange.iHigh > pbRange.iLow)
+				{
+					unsigned long nPos = static_cast<unsigned long>(SendMessage(hWnd, PBM_GETPOS, FALSE, (LPARAM)&pbRange));
+					unsigned long nRangeDiff = pbRange.iHigh - pbRange.iLow;
+					unsigned long nFilledToPercentx100 = (nPos - static_cast<unsigned long>(pbRange.iLow)) * 100 / nRangeDiff;
+					unsigned long nTopFilled = (nHeight * nFilledToPercentx100) / 100;
+					RECT rFilled;
+					rFilled.bottom = rcClient.bottom;
+					rFilled.top = rcClient.bottom - nTopFilled;
+					rFilled.left = rcClient.left + PB_BORDER_WIDTH;
+					rFilled.right = rcClient.right - PB_BORDER_WIDTH;
+					FillRect(hdc, &rFilled, pColorInfo->hBrushProgressBarFilled);
+				}
+			}
+			else
+			{
+				_ASSERT(0);
+			}
+
+			EndPaint(hWnd, &ps);
+			return 0;	// 0 if handled
+		}
+		break;
+	}
+	}
+	return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+}
+
+// pColors must remain allocated for the duration of the subclass
+void InitDarkProgressBar(const HWND hWnd, const int subclassId, DarkProgressBarBrushes* pColors)
+{
+	if (pColors)
+	{		
+		SetWindowSubclass(hWnd, ProgressBarSubclassProc, subclassId, reinterpret_cast<DWORD_PTR>(pColors));
+	}
+}
+
+void DeinitDarkProgressBar(const HWND hWnd, const int subclassId)
+{
+	RemoveWindowSubclass(hWnd, ProgressBarSubclassProc, subclassId);
+}
+

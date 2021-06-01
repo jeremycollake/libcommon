@@ -111,6 +111,25 @@ typedef struct tagDARKSUBCLASSPAINTINFO
 	COLORREF colorText;	
 } DARKSUBCLASSPAINTINFO;
 
-bool ShouldThisAppuseDarkModeNow();
+bool ShouldThisAppUseDarkModeNow();
 void InitDarkStatusBar(const HWND hWnd, const int subclassId, DARKSUBCLASSPAINTINFO* pDarkInfo, bool bRemoveOnly=false);
 void DeinitDarkStatusBar(const HWND hWnd, const int subclassId);
+
+class DarkProgressBarBrushes
+{
+public:
+	HBRUSH hBrushBackground;
+	HBRUSH hBrushProgressBarUnfilled;
+	HBRUSH hBrushProgressBarFilled;
+	HBRUSH hBrushBorder;	
+	DarkProgressBarBrushes()
+	{		
+		hBrushBackground = NULL;
+		hBrushProgressBarUnfilled = NULL;
+		hBrushProgressBarFilled = NULL;
+		hBrushBorder = NULL;
+	}
+};
+
+void InitDarkProgressBar(const HWND hWnd, const int subclassId, DarkProgressBarBrushes* pDarkInfo);
+void DeinitDarkProgressBar(const HWND hWnd, const int subclassId);
