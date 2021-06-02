@@ -510,7 +510,7 @@ LRESULT CALLBACK ProgressBarSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LP
 	{			
 	case WM_ERASEBKGND:
 	{		
-		// we paint entire background regardless in WM_PAINT, so this isn't necessary, and is called every time the progressbar value changes
+		// we paint entire background regardless in WM_PAINT, so this isn't necessary, and is called every time the progressbar value changes, so may cause flicker
 		return FALSE;		// non-zero if bg painted
 		/*
 		LIBCOMMON_DEBUG_PRINT(L"ProgressBarSubclassProc WM_ERASEBKGND");
@@ -533,8 +533,12 @@ LRESULT CALLBACK ProgressBarSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LP
 			PAINTSTRUCT ps;
 			HDC hdc = BeginPaint(hWnd, &ps);
 
-			FillRect(hdc, &rcClient, pColorInfo->hBrushBackground);		// necessary or handled by WM_ERASEBKND? -- issue reported with graphs not going down in value, likely caused when this was disabled
-			FrameRect(hdc, &rcClient, pColorInfo->hBrushBorder);
+			HDC hMemDC = CreateCompatibleDC(hdc);
+			HBITMAP hBitmap = CreateCompatibleBitmap(hdc, rcClient.right - rcClient.left, rcClient.bottom - rcClient.top);
+			HBITMAP hOldBitmap = static_cast<HBITMAP>(SelectObject(hMemDC, hBitmap));
+
+			FillRect(hMemDC, &rcClient, pColorInfo->hBrushBackground);
+			FrameRect(hMemDC, &rcClient, pColorInfo->hBrushBorder);
 
 			const int PB_BORDER_WIDTH = 1;
 			if ((rcClient.bottom - PB_BORDER_WIDTH) > (rcClient.top + PB_BORDER_WIDTH) && (rcClient.right - PB_BORDER_WIDTH) > (rcClient.left + PB_BORDER_WIDTH))
@@ -555,13 +559,18 @@ LRESULT CALLBACK ProgressBarSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LP
 					rFilled.top = rcClient.bottom - nTopFilled;
 					rFilled.left = rcClient.left + PB_BORDER_WIDTH;
 					rFilled.right = rcClient.right - PB_BORDER_WIDTH;
-					FillRect(hdc, &rFilled, pColorInfo->hBrushProgressBarFilled);
+					FillRect(hMemDC, &rFilled, pColorInfo->hBrushProgressBarFilled);
 				}
 			}
 			else
 			{
 				_ASSERT(0);
 			}
+
+			BitBlt(hdc, 0, 0, rcClient.right - rcClient.left, rcClient.bottom - rcClient.top, hMemDC, 0, 0, SRCCOPY);
+			SelectObject(hMemDC, hOldBitmap);
+			DeleteBitmap(hBitmap);
+			DeleteDC(hMemDC);
 
 			EndPaint(hWnd, &ps);
 			return 0;	// 0 if handled
