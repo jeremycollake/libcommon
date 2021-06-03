@@ -559,7 +559,7 @@ LRESULT CALLBACK ProgressBarSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LP
 					rFilled.top = rcClient.bottom - nTopFilled;
 					rFilled.left = rcClient.left + PB_BORDER_WIDTH;
 					rFilled.right = rcClient.right - PB_BORDER_WIDTH;
-					FillRect(hMemDC, &rFilled, pColorInfo->hBrushProgressBarFilled);
+					FillRect(hMemDC, &rFilled, pColorInfo->hBrushForeground);
 				}
 			}
 			else

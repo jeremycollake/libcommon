@@ -118,15 +118,13 @@ void DeinitDarkStatusBar(const HWND hWnd, const int subclassId);
 class DarkProgressBarBrushes
 {
 public:
-	HBRUSH hBrushBackground;
-	HBRUSH hBrushProgressBarUnfilled;
-	HBRUSH hBrushProgressBarFilled;
+	HBRUSH hBrushBackground;	
+	HBRUSH hBrushForeground;
 	HBRUSH hBrushBorder;	
 	DarkProgressBarBrushes()
 	{		
 		hBrushBackground = NULL;
-		hBrushProgressBarUnfilled = NULL;
-		hBrushProgressBarFilled = NULL;
+		hBrushForeground = NULL;
 		hBrushBorder = NULL;
 	}
 };
