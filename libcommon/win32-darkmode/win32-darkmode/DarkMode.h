@@ -118,14 +118,17 @@ void DeinitDarkStatusBar(const HWND hWnd, const int subclassId);
 class DarkProgressBarBrushes
 {
 public:
+	// this class is *not* responsible for deleting these brushes
 	HBRUSH hBrushBackground;	
 	HBRUSH hBrushForeground;
-	HBRUSH hBrushBorder;	
+	HBRUSH hBrushBorder;
+	HBRUSH hBrushDisabledBackground;
 	DarkProgressBarBrushes()
 	{		
 		hBrushBackground = NULL;
 		hBrushForeground = NULL;
 		hBrushBorder = NULL;
+		hBrushDisabledBackground = NULL;
 	}
 };
 

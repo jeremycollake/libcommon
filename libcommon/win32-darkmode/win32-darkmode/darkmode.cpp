@@ -525,7 +525,8 @@ LRESULT CALLBACK ProgressBarSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LP
 	}
 	case WM_PAINT:
 	{
-		if (ShouldThisAppUseDarkModeNow())
+		// always paint if disabled progress bar
+		if (SendMessage(hWnd, PBM_GETSTATE, 0, 0) == PBST_ERROR)
 		{
 			RECT rcClient;
 			GetClientRect(hWnd, &rcClient);
@@ -537,9 +538,33 @@ LRESULT CALLBACK ProgressBarSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LP
 			HBITMAP hBitmap = CreateCompatibleBitmap(hdc, rcClient.right - rcClient.left, rcClient.bottom - rcClient.top);
 			HBITMAP hOldBitmap = static_cast<HBITMAP>(SelectObject(hMemDC, hBitmap));
 
-			FillRect(hMemDC, &rcClient, pColorInfo->hBrushBackground);
+			FillRect(hMemDC, &rcClient, pColorInfo->hBrushDisabledBackground);
 			FrameRect(hMemDC, &rcClient, pColorInfo->hBrushBorder);
 
+			BitBlt(hdc, 0, 0, rcClient.right - rcClient.left, rcClient.bottom - rcClient.top, hMemDC, 0, 0, SRCCOPY);
+			SelectObject(hMemDC, hOldBitmap);
+			DeleteBitmap(hBitmap);
+			DeleteDC(hMemDC);
+
+			EndPaint(hWnd, &ps);
+			return 0;	// 0 if handled
+		}
+		// only paint if dark mode is enabled, else leave to control class
+		else if (ShouldThisAppUseDarkModeNow())
+		{
+			RECT rcClient;
+			GetClientRect(hWnd, &rcClient);
+
+			PAINTSTRUCT ps;
+			HDC hdc = BeginPaint(hWnd, &ps);
+
+			HDC hMemDC = CreateCompatibleDC(hdc);
+			HBITMAP hBitmap = CreateCompatibleBitmap(hdc, rcClient.right - rcClient.left, rcClient.bottom - rcClient.top);
+			HBITMAP hOldBitmap = static_cast<HBITMAP>(SelectObject(hMemDC, hBitmap));
+			
+			FillRect(hMemDC, &rcClient, pColorInfo->hBrushBackground);
+			FrameRect(hMemDC, &rcClient, pColorInfo->hBrushBorder);
+			
 			const int PB_BORDER_WIDTH = 1;
 			if ((rcClient.bottom - PB_BORDER_WIDTH) > (rcClient.top + PB_BORDER_WIDTH) && (rcClient.right - PB_BORDER_WIDTH) > (rcClient.left + PB_BORDER_WIDTH))
 			{
@@ -575,6 +600,7 @@ LRESULT CALLBACK ProgressBarSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LP
 			EndPaint(hWnd, &ps);
 			return 0;	// 0 if handled
 		}
+		// else pass on
 		break;
 	}
 	}
