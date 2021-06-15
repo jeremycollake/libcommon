@@ -114,44 +114,15 @@ void FixDarkScrollBar()
 }
 
 #define LAST_VERIFIED_SUPPORTED_DARKMODE_WIN10_BUILD 21387
-#define BUILD_ALLOWABLE_MARGIN 5000		// max build # over last known supported
+// #define BUILD_ALLOWABLE_MARGIN 5000		// max build # over last known supported  (check disabled)
 
 bool CheckWin10BuildNumber(const DWORD dwBuildNumber, const bool bAllowFutureWin10Builds_Unsafe)
 {
-	if (17763 <= dwBuildNumber && (dwBuildNumber <= (LAST_VERIFIED_SUPPORTED_DARKMODE_WIN10_BUILD + BUILD_ALLOWABLE_MARGIN) || bAllowFutureWin10Builds_Unsafe))
+	// check minimum supported Win10 build number
+	// maximum supported Win10 build check disabled below
+	if (17763 <= dwBuildNumber) // && (dwBuildNumber <= (LAST_VERIFIED_SUPPORTED_DARKMODE_WIN10_BUILD + BUILD_ALLOWABLE_MARGIN) || bAllowFutureWin10Builds_Unsafe))
 	{
 		return true;
-	}
-	return false;
-}
-
-// returns false if Windows build doesn't match compatible
-// intended for use to show user message box allowing over-ride
-bool IsWindowsBuildNewerThanKnownDarkModeCompatible()
-{
-	fnRtlGetNtVersionNumbers RtlGetNtVersionNumbers = reinterpret_cast<fnRtlGetNtVersionNumbers>(GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "RtlGetNtVersionNumbers"));
-	if (RtlGetNtVersionNumbers)
-	{
-		DWORD major, minor, build;
-		RtlGetNtVersionNumbers(&major, &minor, &build);
-		build &= ~0xF0000000;
-		// ensure global is set, for safety on later maintenance
-		g_buildNumber = build;
-		if (major == 10 && minor == 0)
-		{
-			if (build > (LAST_VERIFIED_SUPPORTED_DARKMODE_WIN10_BUILD + BUILD_ALLOWABLE_MARGIN))
-			{
-				return true;
-			}
-		}
-		else if (major >= 10 && minor > 0)
-		{
-			return true;
-		}
-		else if (major > 10)
-		{
-			return true;
-		}
 	}
 	return false;
 }
