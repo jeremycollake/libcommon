@@ -2,11 +2,11 @@
 
 // Standards note: Trying to start migrating away from hungarian notation
 
-#include<atlstr.h>
-#include<map>
-#include<vector>
-#include<mutex>
-#include<sstream>
+#include <atlstr.h>
+#include <map>
+#include <vector>
+#include <mutex>
+#include <sstream>
 #include "CSVUtil.h"
 #include "CSVReader.h"
 #include "DebugOutToggles.h"
@@ -98,7 +98,7 @@ public:
 			LOG_DEBUG_PRINT(L"WARNING: file size out of bounds or nothing to read. Aborting");
 			CloseHandle(hFile);
 			return 0;
-		}		
+		}
 		int bytesToRead = sizeLow - positionBookmark;
 		if (bytesToRead > 0)
 		{
@@ -112,7 +112,7 @@ public:
 				CloseHandle(hFile);
 				return 0;
 			}
-			static CSVUtil csvUtil;			
+			static CSVUtil csvUtil;
 			wistringstream datastream(csvUtil.ConvertUTF8ToWSTR(bytes));
 			int numRows = 0;
 			for (wstring line;
@@ -127,10 +127,10 @@ public:
 				// if header, skip
 				if (positionBookmark > 3 || numRows > 0)
 				{
-					vector<wstring> fields;					
-					csvUtil.ParseCSVRow(line, fields);					
+					vector<wstring> fields;
+					csvUtil.ParseCSVRow(line, fields);
 					rows.push_back(fields);
-				}				
+				}
 				numRows++;
 			}
 
@@ -138,7 +138,7 @@ public:
 			LOG_DEBUG_PRINT(L"Returned %u rows", rows.size());
 		}
 
-		CloseHandle(hFile);		
+		CloseHandle(hFile);
 		return rows.size();
 	}
 };

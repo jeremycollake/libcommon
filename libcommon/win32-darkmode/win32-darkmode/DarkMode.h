@@ -1,5 +1,8 @@
-// from https://github.com/ysc3839/win32-darkmode.git
 #pragma once
+// code based on work from:
+//  https://github.com/ysc3839/win32-darkmode.git
+//  https://github.com/ysc3839/win32-darkmode/pull/17
+//  https://github.com/notepad-plus-plus/notepad-plus-plus/pull/9587
 
 #include "IatHook.h"
 #include "UAHMenuBar.h"
@@ -59,21 +62,21 @@ struct WINDOWCOMPOSITIONATTRIBDATA
 	SIZE_T cbData;
 };
 
-using fnRtlGetNtVersionNumbers = void (WINAPI *)(LPDWORD major, LPDWORD minor, LPDWORD build);
+using fnRtlGetNtVersionNumbers = void (WINAPI*)(LPDWORD major, LPDWORD minor, LPDWORD build);
 using fnSetWindowCompositionAttribute = BOOL(WINAPI*)(HWND hWnd, WINDOWCOMPOSITIONATTRIBDATA*);
 // 1809 17763
-using fnShouldAppsUseDarkMode = bool (WINAPI *)(); // ordinal 132
-using fnAllowDarkModeForWindow = bool (WINAPI *)(HWND hWnd, bool allow); // ordinal 133
+using fnShouldAppsUseDarkMode = bool (WINAPI*)(); // ordinal 132
+using fnAllowDarkModeForWindow = bool (WINAPI*)(HWND hWnd, bool allow); // ordinal 133
 using fnAllowDarkModeForApp = bool (WINAPI*)(bool allow); // ordinal 135, in 1809
-using fnFlushMenuThemes = void (WINAPI *)(); // ordinal 136
-using fnRefreshImmersiveColorPolicyState = void (WINAPI *)(); // ordinal 104
-using fnIsDarkModeAllowedForWindow = bool (WINAPI *)(HWND hWnd); // ordinal 137
-using fnGetIsImmersiveColorUsingHighContrast = bool (WINAPI *)(IMMERSIVE_HC_CACHE_MODE mode); // ordinal 106
-using fnOpenNcThemeData = HTHEME(WINAPI *)(HWND hWnd, LPCWSTR pszClassList); // ordinal 49
+using fnFlushMenuThemes = void (WINAPI*)(); // ordinal 136
+using fnRefreshImmersiveColorPolicyState = void (WINAPI*)(); // ordinal 104
+using fnIsDarkModeAllowedForWindow = bool (WINAPI*)(HWND hWnd); // ordinal 137
+using fnGetIsImmersiveColorUsingHighContrast = bool (WINAPI*)(IMMERSIVE_HC_CACHE_MODE mode); // ordinal 106
+using fnOpenNcThemeData = HTHEME(WINAPI*)(HWND hWnd, LPCWSTR pszClassList); // ordinal 49
 // 1903 18362
-using fnShouldSystemUseDarkMode = bool (WINAPI *)(); // ordinal 138
-using fnSetPreferredAppMode = PreferredAppMode (WINAPI *)(PreferredAppMode appMode); // ordinal 135, since 18334
-using fnIsDarkModeAllowedForApp = bool (WINAPI *)(); // ordinal 139
+using fnShouldSystemUseDarkMode = bool (WINAPI*)(); // ordinal 138
+using fnSetPreferredAppMode = PreferredAppMode(WINAPI*)(PreferredAppMode appMode); // ordinal 135, since 18334
+using fnIsDarkModeAllowedForApp = bool (WINAPI*)(); // ordinal 139
 
 extern fnShouldAppsUseDarkMode _ShouldAppsUseDarkMode;
 extern fnAllowDarkModeForWindow _AllowDarkModeForWindow;
@@ -108,23 +111,23 @@ typedef struct tagDARKSUBCLASSPAINTINFO
 	HBRUSH hBrushBackground;
 	HBRUSH hBrushDivider;
 	HFONT hFont;
-	COLORREF colorText;	
+	COLORREF colorText;
 } DARKSUBCLASSPAINTINFO;
 
 bool ShouldThisAppUseDarkModeNow();
-void InitDarkStatusBar(const HWND hWnd, const int subclassId, DARKSUBCLASSPAINTINFO* pDarkInfo, bool bRemoveOnly=false);
+void InitDarkStatusBar(const HWND hWnd, const int subclassId, DARKSUBCLASSPAINTINFO* pDarkInfo, bool bRemoveOnly = false);
 void DeinitDarkStatusBar(const HWND hWnd, const int subclassId);
 
 class DarkProgressBarBrushes
 {
 public:
 	// this class is *not* responsible for deleting these brushes
-	HBRUSH hBrushBackground;	
+	HBRUSH hBrushBackground;
 	HBRUSH hBrushForeground;
 	HBRUSH hBrushBorder;
 	HBRUSH hBrushDisabledBackground;
 	DarkProgressBarBrushes()
-	{		
+	{
 		hBrushBackground = NULL;
 		hBrushForeground = NULL;
 		hBrushBorder = NULL;

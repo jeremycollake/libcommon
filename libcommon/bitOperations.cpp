@@ -2,7 +2,7 @@
 #include "bitOperations.h"
 
 void bitOperations::unit_tests()
-{	
+{
 	_ASSERT(bitOperations::CountBitsSet(0xffff0000ffff0000) == 32);
 	_ASSERT(bitOperations::CountBitsSet(0xfffff000ffff0000) == 32 + 4);
 	_ASSERT(bitOperations::CountBitsSet(0xffffffffffff0000) == 64 - 16);

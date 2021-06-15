@@ -11,11 +11,11 @@
 // for global, be sure to acquire SE_CREATE_GLOBAL_PRIV
 template <class MSG>
 class InterprocessCommunicator
-{	
-	std::wstring strName;		
+{
+	std::wstring strName;
 	HANDLE hMapFile;
 	HANDLE hMutex_Sender;	// mutex created only by sender. Receiver opens each time. Opened by secondary senders.
-	void *pView;
+	void* pView;
 	unsigned int nViewSizeElementCount;
 private:
 	void Close()
@@ -36,16 +36,16 @@ private:
 			hMutex_Sender = NULL;
 		}
 	}
-public:	
+public:
 	InterprocessCommunicator(const WCHAR* pwszName, const bool bSender, const unsigned int nMaxMessages)
 	{
 		_ASSERT(nMaxMessages && pwszName);
 
-		strName = pwszName;		
-		pView = nullptr;	
+		strName = pwszName;
+		pView = nullptr;
 		hMapFile = NULL;
 		hMutex_Sender = NULL;
-		nViewSizeElementCount = nMaxMessages;		
+		nViewSizeElementCount = nMaxMessages;
 
 		SECURITY_DESCRIPTOR sd;
 		InitializeSecurityDescriptor(&sd, SECURITY_DESCRIPTOR_REVISION);
@@ -58,10 +58,10 @@ public:
 
 		// name should *not* have local or global prefix, we'll append that. However, mark if it does so we can not do that.
 		// note the Global and Local namespaces are case sensitive, so case senstive find is appropriate
-		if (strName.find(L"Global\\") != std::wstring::npos 
+		if (strName.find(L"Global\\") != std::wstring::npos
 			|| strName.find(L"Local\\") != std::wstring::npos)
-		{			
-			IPC_DEBUG_PRINT(L"WARNING: Namespace was passed in to name inappropriately!");			
+		{
+			IPC_DEBUG_PRINT(L"WARNING: Namespace was passed in to name inappropriately!");
 			_ASSERT(0);
 		}
 		else
@@ -135,11 +135,11 @@ public:
 					}
 					else
 					{
-						hMutex_Sender = NULL;						
-					}					
+						hMutex_Sender = NULL;
+					}
 				}
 			}
-		}			
+		}
 	}
 	~InterprocessCommunicator()
 	{
@@ -153,12 +153,12 @@ public:
 	// pop off every message in the view
 	// view is prefixed by a DWORD indicating current member count
 	int Read(std::vector<MSG>& vecMessages)
-	{		
+	{
 		if (!IsReady())
 		{
 			IPC_DEBUG_PRINT(L"ERROR: IPC not ready!");
 			return 0;
-		}		 
+		}
 		HANDLE hMutex;
 		if (hMutex_Sender)
 		{
@@ -166,7 +166,7 @@ public:
 		}
 		else
 		{
-			hMutex=OpenMutex(SYNCHRONIZE, FALSE, strMutexName);
+			hMutex = OpenMutex(SYNCHRONIZE, FALSE, strMutexName);
 		}
 		if (hMutex)
 		{
@@ -188,7 +188,7 @@ public:
 		{
 			IPC_DEBUG_PRINT(L"WARNING: Error opening mutex");
 		}
-		return static_cast<int>(vecMessages.size());		
+		return static_cast<int>(vecMessages.size());
 	}
 	// write a message to the view
 	// view is prefixed by a DWORD indicating current member count

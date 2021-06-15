@@ -89,12 +89,12 @@ class CSVEmitter
 	{
 		// separately write CRLF in case changed to LF
 		DWORD dwBytesWrote;
-		const char* pszCRLF = "\r\n";		
+		const char* pszCRLF = "\r\n";
 		WriteFile(hFile, pszCRLF, 2, &dwBytesWrote, nullptr);
 	}
 
 public:
-	CSVEmitter(const WCHAR* outFilepath, const vector<ATL::CString>& fields) : outFilepath(outFilepath) 
+	CSVEmitter(const WCHAR* outFilepath, const vector<ATL::CString>& fields) : outFilepath(outFilepath)
 	{
 		AddFields(fields);
 	}
@@ -150,7 +150,7 @@ public:
 	bool WriteCurrentLine(const HANDLE hFile)
 	{
 		lock_guard<mutex> lock(mutexFields);
-		DWORD dwBytesWrote;		
+		DWORD dwBytesWrote;
 		if (hFile == INVALID_HANDLE_VALUE)
 		{
 			SAMPLING_DEBUG_PRINT(L"ERROR: Sampling can't write to %s (no handle)", outFilepath);
@@ -182,16 +182,16 @@ public:
 			if (!csRow.IsEmpty())
 			{
 				csRow += L",";
-			}			
+			}
 			csRow += L"\"" + csvUtil.EscapeField(csValue.GetString(), true) + L"\"";
 		}
-		string sOut = csvUtil.ConvertUTF16ToUTF8(csRow);	
+		string sOut = csvUtil.ConvertUTF16ToUTF8(csRow);
 		if (!WriteFile(hFile, &sOut[0], static_cast<DWORD>(sOut.length()), &dwBytesWrote, nullptr))
 		{
 			SAMPLING_DEBUG_PRINT(L"ERROR: Sampling can't write to %s", outFilepath);
 		}
 		WriteLineFeed(hFile);
-		
+
 		mapCurrentLineValues.clear();
 
 		return true;
@@ -200,7 +200,7 @@ public:
 	// if header doesn't match, then wipe and start fresh
 	// if it does, then start appending
 	// should be called only *after* defining fields with AddField
-	HANDLE OpenOutputFile(bool bEmptyFile=false)
+	HANDLE OpenOutputFile(bool bEmptyFile = false)
 	{
 		// do NOT acquire mutex since this may be called from within WriteCurrentLine under some error conditions
 		//lock_guard<mutex> DoNot(mutexFields);		
@@ -212,20 +212,20 @@ public:
 		{
 			SAMPLING_DEBUG_PRINT(L"ERROR: Sampling can't open %s", outFilepath);
 			return INVALID_HANDLE_VALUE;
-		}		
-		if (true==bEmptyFile 
+		}
+		if (true == bEmptyFile
 			|| !CompareHeaderString(hFile))
 		{
 			SAMPLING_DEBUG_PRINT(L"WARNING: Sampling output file header didn't match or empty requested, starting fresh");
 
 			SetFilePointer(hFile, 0, nullptr, FILE_BEGIN);
-			
+
 			WriteFile(hFile, bom, _countof(bom), &dwBytesWrote, nullptr);
-	
+
 			CString csHeader = BuildHeaderString();
 			if (!csHeader.IsEmpty())
 			{
-				string sOut=csvUtil.ConvertUTF16ToUTF8(csHeader);
+				string sOut = csvUtil.ConvertUTF16ToUTF8(csHeader);
 				WriteFile(hFile, &sOut[0], static_cast<DWORD>(sOut.length()), &dwBytesWrote, nullptr);
 				WriteLineFeed(hFile);
 			}

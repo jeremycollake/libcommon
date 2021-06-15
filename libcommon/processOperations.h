@@ -24,7 +24,7 @@ public:
 };
 
 class processOperations
-{	
+{
 	SYSTEM_INFO sysInfo;
 public:
 	processOperations()
@@ -32,9 +32,9 @@ public:
 		GetSystemInfo(&sysInfo);
 	}
 	bool GetAffinityMask(const unsigned long pid, unsigned long long& bitMask);
-	bool SetAffinityMask(const unsigned long pid, const unsigned long long bitMask, const int group=NO_PROCESSOR_GROUP);
+	bool SetAffinityMask(const unsigned long pid, const unsigned long long bitMask, const int group = NO_PROCESSOR_GROUP);
 	// get CPU affinity mask with group
-	bool GetGroupAffinity(const unsigned long pid, GroupAffinity& aff);	
+	bool GetGroupAffinity(const unsigned long pid, GroupAffinity& aff);
 	bool SetProcessGroupAffinity(const unsigned long pid, int nProcessorGroup, unsigned long long maskAff);
 	// get processor groups for a process
 	size_t GetProcessProcessorGroups(const unsigned long pid, std::vector<USHORT>& vGroups);
@@ -44,7 +44,7 @@ public:
 	bool SetPriorityBoost(const unsigned long pid, const bool bPriorityBoostEnabled);
 	bool SetPriorityClass(const unsigned long pid, const long priorityClass);
 	bool TrimWorkingSetSize(const unsigned long pid);
-	bool Terminate(const unsigned long pid, const unsigned long exitCode);		
+	bool Terminate(const unsigned long pid, const unsigned long exitCode);
 	bool CloseApp(const unsigned long pid, const unsigned long exitCode, const unsigned long millisecondsMaxWait);
 	bool SuspendProcess(const unsigned long pid);
 	bool ResumeProcess(const unsigned long pid);
@@ -52,9 +52,9 @@ public:
 	bool GetUserNameByToken(const unsigned long pid, CString& csUser, CString& csDomain);
 	unsigned long GetParentOfProcess(const unsigned long pid);
 	bool GetLogonFromToken(HANDLE hToken, CString& csUser, CString& csDomain);
-	bool GetUserNameForProcess(const unsigned long pid, ATL::CString &csUser, ATL::CString &csDomain);	
+	bool GetUserNameForProcess(const unsigned long pid, ATL::CString& csUser, ATL::CString& csDomain);
 
-	unsigned long long LimitAffinityToInstalledCPUCores(unsigned long long bitmask);	
+	unsigned long long LimitAffinityToInstalledCPUCores(unsigned long long bitmask);
 
 	HWND GetLikelyPrimaryWindow(const unsigned long pid);
 

@@ -1,4 +1,8 @@
-// from https://github.com/ysc3839/win32-darkmode.git
+// code based on work from:
+//  https://github.com/ysc3839/win32-darkmode.git
+//  https://github.com/ysc3839/win32-darkmode/pull/17
+//  https://github.com/notepad-plus-plus/notepad-plus-plus/pull/9587
+
 #include "../../pch.h"
 #include "darkmode.h"
 
@@ -18,7 +22,6 @@ fnSetPreferredAppMode _SetPreferredAppMode = nullptr;
 bool g_darkModeSupported = false;
 bool g_darkModeEnabled = false;
 DWORD g_buildNumber = 0;
-
 
 bool AllowDarkModeForWindow(HWND hWnd, bool allow)
 {
@@ -50,7 +53,7 @@ void RefreshTitleBarThemeColor(HWND hWnd)
 	{
 		WINDOWCOMPOSITIONATTRIBDATA data = { WCA_USEDARKMODECOLORS, &dark, sizeof(dark) };
 		_SetWindowCompositionAttribute(hWnd, &data);
-	}	
+	}
 }
 
 bool IsColorSchemeChangeMessage(LPARAM lParam)
@@ -114,7 +117,7 @@ void FixDarkScrollBar()
 #define BUILD_ALLOWABLE_MARGIN 5000		// max build # over last known supported
 
 bool CheckWin10BuildNumber(const DWORD dwBuildNumber, const bool bAllowFutureWin10Builds_Unsafe)
-{	
+{
 	if (17763 <= dwBuildNumber && (dwBuildNumber <= (LAST_VERIFIED_SUPPORTED_DARKMODE_WIN10_BUILD + BUILD_ALLOWABLE_MARGIN) || bAllowFutureWin10Builds_Unsafe))
 	{
 		return true;
@@ -135,7 +138,7 @@ bool IsWindowsBuildNewerThanKnownDarkModeCompatible()
 		// ensure global is set, for safety on later maintenance
 		g_buildNumber = build;
 		if (major == 10 && minor == 0)
-		{			
+		{
 			if (build > (LAST_VERIFIED_SUPPORTED_DARKMODE_WIN10_BUILD + BUILD_ALLOWABLE_MARGIN))
 			{
 				return true;
@@ -154,7 +157,7 @@ bool IsWindowsBuildNewerThanKnownDarkModeCompatible()
 }
 
 void InitDarkMode(const bool bAllowFutureWin10Builds_Unsafe)
-{	
+{
 	fnRtlGetNtVersionNumbers RtlGetNtVersionNumbers = reinterpret_cast<fnRtlGetNtVersionNumbers>(GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "RtlGetNtVersionNumbers"));
 	if (RtlGetNtVersionNumbers)
 	{
@@ -205,6 +208,131 @@ void InitDarkMode(const bool bAllowFutureWin10Builds_Unsafe)
 	}
 }
 
+bool ShouldThisAppUseDarkModeNow()
+{
+	return (g_darkModeSupported && g_darkModeEnabled
+		&& _ShouldAppsUseDarkMode && _ShouldAppsUseDarkMode());
+}
+
+// dark progress bars
+LRESULT CALLBACK ProgressBarSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
+{
+	auto pColorInfo = (DarkProgressBarBrushes*)dwRefData;
+	switch (uMsg)
+	{
+	case WM_ERASEBKGND:
+	{
+		// we paint entire background regardless in WM_PAINT, so this isn't necessary, and is called every time the progressbar value changes, so may cause flicker
+		return FALSE;		// non-zero if bg painted
+		/*
+		LIBCOMMON_DEBUG_PRINT(L"ProgressBarSubclassProc WM_ERASEBKGND");
+		if (ShouldThisAppUseDarkModeNow())
+		{
+			RECT rc;
+			GetClientRect(hWnd, &rc);
+			FillRect((HDC)wParam, &rc, pColorInfo->hBrushBackground);
+			return TRUE;		// non-zero if bg painted
+		}
+		break;*/
+	}
+	case WM_PAINT:
+	{
+		// always paint if disabled progress bar
+		if (SendMessage(hWnd, PBM_GETSTATE, 0, 0) == PBST_ERROR)
+		{
+			RECT rcClient;
+			GetClientRect(hWnd, &rcClient);
+
+			PAINTSTRUCT ps;
+			HDC hdc = BeginPaint(hWnd, &ps);
+
+			HDC hMemDC = CreateCompatibleDC(hdc);
+			HBITMAP hBitmap = CreateCompatibleBitmap(hdc, rcClient.right - rcClient.left, rcClient.bottom - rcClient.top);
+			HBITMAP hOldBitmap = static_cast<HBITMAP>(SelectObject(hMemDC, hBitmap));
+
+			FillRect(hMemDC, &rcClient, pColorInfo->hBrushDisabledBackground);
+			FrameRect(hMemDC, &rcClient, pColorInfo->hBrushBorder);
+
+			BitBlt(hdc, 0, 0, rcClient.right - rcClient.left, rcClient.bottom - rcClient.top, hMemDC, 0, 0, SRCCOPY);
+			SelectObject(hMemDC, hOldBitmap);
+			DeleteBitmap(hBitmap);
+			DeleteDC(hMemDC);
+
+			EndPaint(hWnd, &ps);
+			return 0;	// 0 if handled
+		}
+		// only paint if dark mode is enabled, else leave to control class
+		else if (ShouldThisAppUseDarkModeNow())
+		{
+			RECT rcClient;
+			GetClientRect(hWnd, &rcClient);
+
+			PAINTSTRUCT ps;
+			HDC hdc = BeginPaint(hWnd, &ps);
+
+			HDC hMemDC = CreateCompatibleDC(hdc);
+			HBITMAP hBitmap = CreateCompatibleBitmap(hdc, rcClient.right - rcClient.left, rcClient.bottom - rcClient.top);
+			HBITMAP hOldBitmap = static_cast<HBITMAP>(SelectObject(hMemDC, hBitmap));
+
+			FillRect(hMemDC, &rcClient, pColorInfo->hBrushBackground);
+			FrameRect(hMemDC, &rcClient, pColorInfo->hBrushBorder);
+
+			const int PB_BORDER_WIDTH = 1;
+			if ((rcClient.bottom - PB_BORDER_WIDTH) > (rcClient.top + PB_BORDER_WIDTH) && (rcClient.right - PB_BORDER_WIDTH) > (rcClient.left + PB_BORDER_WIDTH))
+			{
+				unsigned int nHeight = (rcClient.bottom - PB_BORDER_WIDTH) - (rcClient.top + PB_BORDER_WIDTH);
+				_ASSERT(nHeight > 0 && nHeight < 32 * 1024);
+				PBRANGE pbRange = { 0, 0 };
+				SendMessage(hWnd, PBM_GETRANGE, FALSE, (LPARAM)&pbRange);
+				_ASSERT(pbRange.iHigh > pbRange.iLow);
+				if (pbRange.iHigh > pbRange.iLow)
+				{
+					unsigned long nPos = static_cast<unsigned long>(SendMessage(hWnd, PBM_GETPOS, FALSE, (LPARAM)&pbRange));
+					unsigned long nRangeDiff = pbRange.iHigh - pbRange.iLow;
+					unsigned long nFilledToPercentx100 = (nPos - static_cast<unsigned long>(pbRange.iLow)) * 100 / nRangeDiff;
+					unsigned long nTopFilled = (nHeight * nFilledToPercentx100) / 100;
+					RECT rFilled;
+					rFilled.bottom = rcClient.bottom;
+					rFilled.top = rcClient.bottom - nTopFilled;
+					rFilled.left = rcClient.left + PB_BORDER_WIDTH;
+					rFilled.right = rcClient.right - PB_BORDER_WIDTH;
+					FillRect(hMemDC, &rFilled, pColorInfo->hBrushForeground);
+				}
+			}
+			else
+			{
+				_ASSERT(0);
+			}
+
+			BitBlt(hdc, 0, 0, rcClient.right - rcClient.left, rcClient.bottom - rcClient.top, hMemDC, 0, 0, SRCCOPY);
+			SelectObject(hMemDC, hOldBitmap);
+			DeleteBitmap(hBitmap);
+			DeleteDC(hMemDC);
+
+			EndPaint(hWnd, &ps);
+			return 0;	// 0 if handled
+		}
+		// else pass on
+		break;
+	}
+	}
+	return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+}
+
+// pColors must remain allocated for the duration of the subclass
+void InitDarkProgressBar(const HWND hWnd, const int subclassId, DarkProgressBarBrushes* pColors)
+{
+	if (pColors)
+	{
+		SetWindowSubclass(hWnd, ProgressBarSubclassProc, subclassId, reinterpret_cast<DWORD_PTR>(pColors));
+	}
+}
+
+void DeinitDarkProgressBar(const HWND hWnd, const int subclassId)
+{
+	RemoveWindowSubclass(hWnd, ProgressBarSubclassProc, subclassId);
+}
+
 ///////////////////////////////////////////////////////////////////
 // dark menu bar drawing
 // MIT license, see LICENSE
@@ -212,81 +340,11 @@ void InitDarkMode(const bool bAllowFutureWin10Builds_Unsafe)
 
 static HTHEME g_menuTheme = nullptr;
 
-// window messages related to menu bar drawing
-#define WM_UAHDESTROYWINDOW    0x0090	// handled by DefWindowProc
-#define WM_UAHDRAWMENU         0x0091	// lParam is UAHMENU
-#define WM_UAHDRAWMENUITEM     0x0092	// lParam is UAHDRAWMENUITEM
-#define WM_UAHINITMENU         0x0093	// handled by DefWindowProc
-#define WM_UAHMEASUREMENUITEM  0x0094	// lParam is UAHMEASUREMENUITEM
-#define WM_UAHNCPAINTMENUPOPUP 0x0095	// handled by DefWindowProc
-
-// describes the sizes of the menu bar or menu item
-typedef union tagUAHMENUITEMMETRICS
-{
-	// cx appears to be 14 / 0xE less than rcItem's width!
-	// cy 0x14 seems stable, i wonder if it is 4 less than rcItem's height which is always 24 atm
-	struct {
-		DWORD cx;
-		DWORD cy;
-	} rgsizeBar[2];
-	struct {
-		DWORD cx;
-		DWORD cy;
-	} rgsizePopup[4];
-} UAHMENUITEMMETRICS;
-
-// not really used in our case but part of the other structures
-typedef struct tagUAHMENUPOPUPMETRICS
-{
-	DWORD rgcx[4];
-	DWORD fUpdateMaxWidths : 2; // from kernel symbols, padded to full dword
-} UAHMENUPOPUPMETRICS;
-
-// hmenu is the main window menu; hdc is the context to draw in
-typedef struct tagUAHMENU
-{
-	HMENU hmenu;
-	HDC hdc;
-	DWORD dwFlags; // no idea what these mean, in my testing it's either 0x00000a00 or sometimes 0x00000a10
-} UAHMENU;
-
-// menu items are always referred to by iPosition here
-typedef struct tagUAHMENUITEM
-{
-	int iPosition; // 0-based position of menu item in menubar
-	UAHMENUITEMMETRICS umim;
-	UAHMENUPOPUPMETRICS umpm;
-} UAHMENUITEM;
-
-// the DRAWITEMSTRUCT contains the states of the menu items, as well as
-// the position index of the item in the menu, which is duplicated in
-// the UAHMENUITEM's iPosition as well
-typedef struct UAHDRAWMENUITEM
-{
-	DRAWITEMSTRUCT dis; // itemID looks uninitialized
-	UAHMENU um;
-	UAHMENUITEM umi;
-} UAHDRAWMENUITEM;
-
-// the MEASUREITEMSTRUCT is intended to be filled with the size of the item
-// height appears to be ignored, but width can be modified
-typedef struct tagUAHMEASUREMENUITEM
-{
-	MEASUREITEMSTRUCT mis;
-	UAHMENU um;
-	UAHMENUITEM umi;
-} UAHMEASUREMENUITEM;
-
-bool ShouldThisAppUseDarkModeNow()
-{	
-	return (g_darkModeSupported && g_darkModeEnabled
-		&& _ShouldAppsUseDarkMode && _ShouldAppsUseDarkMode());	// see painting issue with this code when app mode is non-dark - https://github.com/jeremycollake/processlasso/issues/1339 and https://github.com/ysc3839/win32-darkmode/pull/17#issuecomment-845428664
-}
-
 void InitDarkMenuBar(const HWND hWnd, const int subclassId)
 {
 	SetWindowSubclass(hWnd, [](HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData) -> LRESULT {
-		if (ShouldThisAppUseDarkModeNow()) 
+		// only owner dark menubar in dark mode, issue when mode is non-dark: https://github.com/jeremycollake/processlasso/issues/1339 and https://github.com/ysc3839/win32-darkmode/pull/17#issuecomment-845428664
+		if (ShouldThisAppUseDarkModeNow())
 		{
 			switch (uMsg)
 			{
@@ -393,7 +451,7 @@ void InitDarkMenuBar(const HWND hWnd, const int subclassId)
 		}
 		return DefSubclassProc(hWnd, uMsg, wParam, lParam);
 		}, subclassId, 0);
-} 
+}
 
 // dark mode status bar code
 // derived from Azdm's work at https://github.com/notepad-plus-plus/notepad-plus-plus/pull/9587/commits/ac8d27714add2e4f9eb0d79bbbefe60883689d6c
@@ -402,10 +460,10 @@ void InitDarkMenuBar(const HWND hWnd, const int subclassId)
 LRESULT CALLBACK StatusBarSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
 {
 	auto pDarkInfo = (DARKSUBCLASSPAINTINFO*)dwRefData;
-	switch (uMsg) 
+	switch (uMsg)
 	{
 	case WM_ERASEBKGND:
-	{		
+	{
 		if (ShouldThisAppUseDarkModeNow())
 		{
 			RECT rc;
@@ -476,8 +534,8 @@ LRESULT CALLBACK StatusBarSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
 	return DefSubclassProc(hWnd, uMsg, wParam, lParam);
 }
 
-void InitDarkStatusBar(const HWND hWnd, const int subclassId, DARKSUBCLASSPAINTINFO *pDarkInfo, bool bRemoveOnly)
-{	
+void InitDarkStatusBar(const HWND hWnd, const int subclassId, DARKSUBCLASSPAINTINFO* pDarkInfo, bool bRemoveOnly)
+{
 	static DARKSUBCLASSPAINTINFO* pDarkPaintInfo = nullptr;
 	if (pDarkPaintInfo)
 	{
@@ -487,12 +545,12 @@ void InitDarkStatusBar(const HWND hWnd, const int subclassId, DARKSUBCLASSPAINTI
 		DeleteObject(pDarkPaintInfo->hBrushBackground);
 		DeleteObject(pDarkPaintInfo->hBrushDivider);
 		delete pDarkPaintInfo;
-		pDarkPaintInfo = nullptr;		
-	}		
-	
+		pDarkPaintInfo = nullptr;
+	}
+
 	if (!bRemoveOnly && pDarkInfo)
 	{
-		pDarkPaintInfo = new DARKSUBCLASSPAINTINFO { pDarkInfo->hBrushBackground, pDarkInfo->hBrushDivider, pDarkInfo->hFont, pDarkInfo->colorText };
+		pDarkPaintInfo = new DARKSUBCLASSPAINTINFO{ pDarkInfo->hBrushBackground, pDarkInfo->hBrushDivider, pDarkInfo->hFont, pDarkInfo->colorText };
 		SetWindowSubclass(hWnd, StatusBarSubclassProc, subclassId, reinterpret_cast<DWORD_PTR>(pDarkPaintInfo));
 	}
 }
@@ -501,123 +559,3 @@ void DeinitDarkStatusBar(const HWND hWnd, const int subclassId)
 {
 	InitDarkStatusBar(hWnd, subclassId, nullptr, true);
 }
-
-// dark progress bars
-LRESULT CALLBACK ProgressBarSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
-{
-	auto pColorInfo = (DarkProgressBarBrushes*)dwRefData;
-	switch (uMsg)
-	{			
-	case WM_ERASEBKGND:
-	{		
-		// we paint entire background regardless in WM_PAINT, so this isn't necessary, and is called every time the progressbar value changes, so may cause flicker
-		return FALSE;		// non-zero if bg painted
-		/*
-		LIBCOMMON_DEBUG_PRINT(L"ProgressBarSubclassProc WM_ERASEBKGND");
-		if (ShouldThisAppUseDarkModeNow())
-		{
-			RECT rc;
-			GetClientRect(hWnd, &rc);
-			FillRect((HDC)wParam, &rc, pColorInfo->hBrushBackground);
-			return TRUE;		// non-zero if bg painted
-		}
-		break;*/
-	}
-	case WM_PAINT:
-	{
-		// always paint if disabled progress bar
-		if (SendMessage(hWnd, PBM_GETSTATE, 0, 0) == PBST_ERROR)
-		{
-			RECT rcClient;
-			GetClientRect(hWnd, &rcClient);
-
-			PAINTSTRUCT ps;
-			HDC hdc = BeginPaint(hWnd, &ps);
-
-			HDC hMemDC = CreateCompatibleDC(hdc);
-			HBITMAP hBitmap = CreateCompatibleBitmap(hdc, rcClient.right - rcClient.left, rcClient.bottom - rcClient.top);
-			HBITMAP hOldBitmap = static_cast<HBITMAP>(SelectObject(hMemDC, hBitmap));
-
-			FillRect(hMemDC, &rcClient, pColorInfo->hBrushDisabledBackground);
-			FrameRect(hMemDC, &rcClient, pColorInfo->hBrushBorder);
-
-			BitBlt(hdc, 0, 0, rcClient.right - rcClient.left, rcClient.bottom - rcClient.top, hMemDC, 0, 0, SRCCOPY);
-			SelectObject(hMemDC, hOldBitmap);
-			DeleteBitmap(hBitmap);
-			DeleteDC(hMemDC);
-
-			EndPaint(hWnd, &ps);
-			return 0;	// 0 if handled
-		}
-		// only paint if dark mode is enabled, else leave to control class
-		else if (ShouldThisAppUseDarkModeNow())
-		{
-			RECT rcClient;
-			GetClientRect(hWnd, &rcClient);
-
-			PAINTSTRUCT ps;
-			HDC hdc = BeginPaint(hWnd, &ps);
-
-			HDC hMemDC = CreateCompatibleDC(hdc);
-			HBITMAP hBitmap = CreateCompatibleBitmap(hdc, rcClient.right - rcClient.left, rcClient.bottom - rcClient.top);
-			HBITMAP hOldBitmap = static_cast<HBITMAP>(SelectObject(hMemDC, hBitmap));
-			
-			FillRect(hMemDC, &rcClient, pColorInfo->hBrushBackground);
-			FrameRect(hMemDC, &rcClient, pColorInfo->hBrushBorder);
-			
-			const int PB_BORDER_WIDTH = 1;
-			if ((rcClient.bottom - PB_BORDER_WIDTH) > (rcClient.top + PB_BORDER_WIDTH) && (rcClient.right - PB_BORDER_WIDTH) > (rcClient.left + PB_BORDER_WIDTH))
-			{
-				unsigned int nHeight = (rcClient.bottom - PB_BORDER_WIDTH) - (rcClient.top + PB_BORDER_WIDTH);
-				_ASSERT(nHeight > 0 && nHeight < 32 * 1024);
-				PBRANGE pbRange = { 0, 0 };
-				SendMessage(hWnd, PBM_GETRANGE, FALSE, (LPARAM)&pbRange);
-				_ASSERT(pbRange.iHigh > pbRange.iLow);
-				if (pbRange.iHigh > pbRange.iLow)
-				{
-					unsigned long nPos = static_cast<unsigned long>(SendMessage(hWnd, PBM_GETPOS, FALSE, (LPARAM)&pbRange));
-					unsigned long nRangeDiff = pbRange.iHigh - pbRange.iLow;
-					unsigned long nFilledToPercentx100 = (nPos - static_cast<unsigned long>(pbRange.iLow)) * 100 / nRangeDiff;
-					unsigned long nTopFilled = (nHeight * nFilledToPercentx100) / 100;
-					RECT rFilled;
-					rFilled.bottom = rcClient.bottom;
-					rFilled.top = rcClient.bottom - nTopFilled;
-					rFilled.left = rcClient.left + PB_BORDER_WIDTH;
-					rFilled.right = rcClient.right - PB_BORDER_WIDTH;
-					FillRect(hMemDC, &rFilled, pColorInfo->hBrushForeground);
-				}
-			}
-			else
-			{
-				_ASSERT(0);
-			}
-
-			BitBlt(hdc, 0, 0, rcClient.right - rcClient.left, rcClient.bottom - rcClient.top, hMemDC, 0, 0, SRCCOPY);
-			SelectObject(hMemDC, hOldBitmap);
-			DeleteBitmap(hBitmap);
-			DeleteDC(hMemDC);
-
-			EndPaint(hWnd, &ps);
-			return 0;	// 0 if handled
-		}
-		// else pass on
-		break;
-	}
-	}
-	return DefSubclassProc(hWnd, uMsg, wParam, lParam);
-}
-
-// pColors must remain allocated for the duration of the subclass
-void InitDarkProgressBar(const HWND hWnd, const int subclassId, DarkProgressBarBrushes* pColors)
-{
-	if (pColors)
-	{		
-		SetWindowSubclass(hWnd, ProgressBarSubclassProc, subclassId, reinterpret_cast<DWORD_PTR>(pColors));
-	}
-}
-
-void DeinitDarkProgressBar(const HWND hWnd, const int subclassId)
-{
-	RemoveWindowSubclass(hWnd, ProgressBarSubclassProc, subclassId);
-}
-

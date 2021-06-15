@@ -29,7 +29,7 @@ bool wildicmpEx(const TCHAR* wild, const TCHAR* str);
 
 BOOL IsElevated();
 // launch a medium IL process (unelevated from elevated)
-BOOL CreateMediumProcess(const WCHAR* pwszProcessName, WCHAR* pwszCommandLine, const WCHAR *pwszCWD, PROCESS_INFORMATION* pInfo);
+BOOL CreateMediumProcess(const WCHAR* pwszProcessName, WCHAR* pwszCommandLine, const WCHAR* pwszCWD, PROCESS_INFORMATION* pInfo);
 
 size_t ExplodeString(const ATL::CString& str, const WCHAR delim, std::vector<ATL::CString>& vecOut);
 bool IsStringMatchInVector(const WCHAR* string, const std::vector<ATL::CString>& vecPatterns);

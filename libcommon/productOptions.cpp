@@ -67,19 +67,19 @@ bool& ProductOptions::operator[] (const WCHAR* pwszValueName)
 
 // returns false if default used
 bool ProductOptions::get_value(const WCHAR* pwszValueName, bool& bVal, const bool bDefault)
-{	
+{
 	if (mapBools.find(pwszValueName) == mapBools.end())
 	{
 		if (read_value(pwszValueName, bVal))
 		{
 			// only update map if read was successful (forces try to re-read next get)
-			mapBools[pwszValueName] = bVal;			
+			mapBools[pwszValueName] = bVal;
 		}
 		else
 		{
 			bVal = bDefault;
 			return false;
-		}		
+		}
 	}
 	bVal = mapBools[pwszValueName];
 	return true;
@@ -91,19 +91,19 @@ bool ProductOptions::get_value(const WCHAR* pwszValueName, int& nVal, const int 
 }
 
 bool ProductOptions::get_value(const WCHAR* pwszValueName, unsigned& nVal, unsigned nDefault)
-{	
+{
 	if (mapuint32.find(pwszValueName) == mapuint32.end())
 	{
 		if (read_value(pwszValueName, nVal))
 		{
 			// only update map if read was successful (forces try to re-read next get)
-			mapuint32[pwszValueName] = nVal;			
+			mapuint32[pwszValueName] = nVal;
 		}
 		else
 		{
 			nVal = nDefault;
 			return false;
-		}		
+		}
 	}
 	nVal = mapuint32[pwszValueName];
 	return true;
@@ -121,32 +121,32 @@ bool ProductOptions::get_value(const WCHAR* pwszValueName, unsigned long long& n
 		if (read_value(pwszValueName, nVal))
 		{
 			// only update map if read was successful (forces try to re-read next get)
-			mapuint64[pwszValueName] = nVal;			
+			mapuint64[pwszValueName] = nVal;
 		}
 		else
 		{
 			nVal = nDefault;
 			return false;
-		}		
+		}
 	}
 	nVal = mapuint64[pwszValueName];
 	return true;
 }
 
-bool ProductOptions::get_value(const WCHAR* pwszValueName, ATL::CString& csVal, const WCHAR *pwszDefault)
-{	
+bool ProductOptions::get_value(const WCHAR* pwszValueName, ATL::CString& csVal, const WCHAR* pwszDefault)
+{
 	if (mapstr.find(pwszValueName) == mapstr.end())
 	{
 		if (read_value(pwszValueName, csVal))
 		{
 			// only update map if read was successful (forces try to re-read next get)
-			mapstr[pwszValueName] = csVal;			
+			mapstr[pwszValueName] = csVal;
 		}
 		else
 		{
 			csVal = pwszDefault;
 			return false;
-		}		
+		}
 	}
 	csVal = mapstr[pwszValueName];
 	return true;
@@ -212,7 +212,7 @@ bool ProductOptions::read_value(const WCHAR* pwszValueName, unsigned& nResult)
 		DWORD dwSize = sizeof(DWORD);
 		DWORD dwType = REG_DWORD;
 
-		if (RegQueryValueEx(hKey, pwszValueName, 0, &dwType, (LPBYTE)& dwVal, &dwSize) == ERROR_SUCCESS)
+		if (RegQueryValueEx(hKey, pwszValueName, 0, &dwType, (LPBYTE)&dwVal, &dwSize) == ERROR_SUCCESS)
 		{
 			bRet = true;
 			nResult = static_cast<unsigned>(dwVal);
@@ -232,13 +232,13 @@ bool ProductOptions::read_value(const WCHAR* pwszValueName, unsigned long long& 
 
 	if (RegCreateKeyEx(_hHive,
 		csKeyname.GetBuffer(),
-		0, NULL, 0, KEY_QUERY_VALUE| _Wow64Access, NULL, &hKey, &dwDispo) == ERROR_SUCCESS)
+		0, NULL, 0, KEY_QUERY_VALUE | _Wow64Access, NULL, &hKey, &dwDispo) == ERROR_SUCCESS)
 	{
 		unsigned long long nLoaded = 0;
 		DWORD dwSize = sizeof(nLoaded);
 		DWORD dwType = REG_DWORD;
 
-		if (RegQueryValueEx(hKey, pwszValueName, 0, &dwType, (LPBYTE)& nLoaded, &dwSize) == ERROR_SUCCESS)
+		if (RegQueryValueEx(hKey, pwszValueName, 0, &dwType, (LPBYTE)&nLoaded, &dwSize) == ERROR_SUCCESS)
 		{
 			bRet = true;
 			nResult = static_cast<unsigned long long>(nLoaded);
@@ -285,8 +285,8 @@ bool ProductOptions::read_value(const WCHAR* pwszValueName, ATL::CString& csResu
 bool ProductOptions::write_value(const WCHAR* pwszValueName, const bool bVal)
 {
 	// boolean stored as REG_DWORD, defer to it
-	unsigned dwVal = bVal ? 1 : 0;	
-	bool bR = write_value(pwszValueName, dwVal);	
+	unsigned dwVal = bVal ? 1 : 0;
+	bool bR = write_value(pwszValueName, dwVal);
 	return bR;
 }
 
@@ -300,7 +300,7 @@ bool ProductOptions::write_value(const WCHAR* pwszValueName, const unsigned nVal
 		csKeyname.GetBuffer(),
 		0, NULL, 0, KEY_SET_VALUE | _Wow64Access, NULL, &hKey, &dwDispo) == ERROR_SUCCESS)
 	{
-		if (RegSetValueEx(hKey, pwszValueName, 0, REG_DWORD, (LPBYTE)& nVal, sizeof(nVal)) == ERROR_SUCCESS)
+		if (RegSetValueEx(hKey, pwszValueName, 0, REG_DWORD, (LPBYTE)&nVal, sizeof(nVal)) == ERROR_SUCCESS)
 		{
 			bRet = true;
 		}
@@ -320,7 +320,7 @@ bool ProductOptions::write_value(const WCHAR* pwszValueName, const unsigned long
 		csKeyname.GetBuffer(),
 		0, NULL, 0, KEY_SET_VALUE | _Wow64Access, NULL, &hKey, &dwDispo) == ERROR_SUCCESS)
 	{
-		if (RegSetValueEx(hKey, pwszValueName, 0, REG_QWORD, (LPBYTE)& nVal, sizeof(nVal)) == ERROR_SUCCESS)
+		if (RegSetValueEx(hKey, pwszValueName, 0, REG_QWORD, (LPBYTE)&nVal, sizeof(nVal)) == ERROR_SUCCESS)
 		{
 			bRet = true;
 		}

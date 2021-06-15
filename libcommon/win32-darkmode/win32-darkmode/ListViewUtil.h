@@ -1,8 +1,8 @@
 #pragma once
 
 struct SubclassInfo
-{	
-	COLORREF colorHeaderText;	
+{
+	COLORREF colorHeaderText;
 };
 
 void InitListView(const HWND hListView, const int subclassId)
@@ -37,7 +37,7 @@ void InitListView(const HWND hListView, const int subclassId)
 						(g_darkModeSupported && _ShouldAppsUseDarkMode() && !IsHighContrast()))
 						&&
 						IsThemeActive())
-					{						
+					{
 						auto info = reinterpret_cast<SubclassInfo*>(dwRefData);
 						SetTextColor(nmcd->hdc, info->colorHeaderText);
 					}
@@ -54,10 +54,10 @@ void InitListView(const HWND hListView, const int subclassId)
 			{
 				AllowDarkModeForWindow(hWnd, g_darkModeEnabled);
 				AllowDarkModeForWindow(hHeader, g_darkModeEnabled);
-			}							
+			}
 
 			// fail-safe to header text color same as listview			
-			COLORREF color=ListView_GetTextColor(hWnd);
+			COLORREF color = ListView_GetTextColor(hWnd);
 
 			// get listview header text color from theme				
 			HTHEME hTheme = OpenThemeData(hHeader, L"Header");
@@ -69,8 +69,8 @@ void InitListView(const HWND hListView, const int subclassId)
 					//
 				}
 				CloseThemeData(hTheme);
-			}			
-			
+			}
+
 			auto info = reinterpret_cast<SubclassInfo*>(dwRefData);
 			info->colorHeaderText = color;
 
@@ -86,7 +86,7 @@ void InitListView(const HWND hListView, const int subclassId)
 		break;
 		}
 		return DefSubclassProc(hWnd, uMsg, wParam, lParam);
-		}, subclassId, reinterpret_cast<DWORD_PTR>(new SubclassInfo{}));	
+		}, subclassId, reinterpret_cast<DWORD_PTR>(new SubclassInfo{}));
 
 	// Hide focus dots
 	SendMessage(hListView, WM_CHANGEUISTATE, MAKELONG(UIS_SET, UISF_HIDEFOCUS), 0);

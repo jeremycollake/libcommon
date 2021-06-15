@@ -11,5 +11,5 @@ void DbgPrintf(LPCTSTR fmt, ...)
 	csTemp.FormatV(fmt, marker);
 	va_end(marker);
 	csTemp += L"\n";
-	OutputDebugStringW(csTemp);	
+	OutputDebugStringW(csTemp);
 }

@@ -35,7 +35,7 @@ bool processOperations::SetAffinityMask(const unsigned long pid, const unsigned 
 		}
 		// must call SetProcessGroupAffinity as well to change default group (not that it works for new threads)
 		// use NT native API to set group and affinity
-		bR = SetProcessGroupAffinity(pid, group, bitMask);					
+		bR = SetProcessGroupAffinity(pid, group, bitMask);
 		// backup safety, unnecessary
 		::SetProcessAffinityMask(hProcess, bitMask);
 	}
@@ -48,12 +48,12 @@ bool processOperations::SetGroupAffinityForAllThreads(const unsigned long pid, c
 	//LIBCOMMON_DEBUG_PRINT(L"SetGroupAffinityForAllThreads");
 	HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
 	if (hSnapshot == INVALID_HANDLE_VALUE)
-	{		
+	{
 		LIBCOMMON_DEBUG_PRINT(L"ERROR: Snapshot failure");
 		return false;
 	}
 
-	bool bR = true;	
+	bool bR = true;
 	THREADENTRY32 te32;
 	te32.dwSize = sizeof(THREADENTRY32);
 	if (!Thread32First(hSnapshot, &te32))
@@ -66,7 +66,7 @@ bool processOperations::SetGroupAffinityForAllThreads(const unsigned long pid, c
 		if (te32.th32OwnerProcessID == pid)
 		{
 			//LIBCOMMON_DEBUG_PRINT(L"Adjusting affinity of TID %u", te32.th32ThreadID);
-			HANDLE hThread = OpenThread(THREAD_SET_INFORMATION | THREAD_QUERY_INFORMATION, FALSE, te32.th32ThreadID);			
+			HANDLE hThread = OpenThread(THREAD_SET_INFORMATION | THREAD_QUERY_INFORMATION, FALSE, te32.th32ThreadID);
 			if (hThread)
 			{
 				GROUP_AFFINITY groupAff, prevGroupAff;
@@ -88,7 +88,7 @@ bool processOperations::SetGroupAffinityForAllThreads(const unsigned long pid, c
 			{
 				LIBCOMMON_DEBUG_PRINT(L"ERROR: Opening thread TID %u", te32.th32ThreadID);
 			}
-		}		
+		}
 	} while (Thread32Next(hSnapshot, &te32));
 	CloseHandle(hSnapshot);
 	return bR;
@@ -112,21 +112,21 @@ bool processOperations::GetGroupAffinity(const unsigned long pid, GroupAffinity&
 	// we can either use NT native API to get the default group, or enumerate groups and assume first is the default
 	// for now use standard documented API
 	std::vector<USHORT> vGroups;
-	bool bR=GetAffinityMask(pid, aff.mask);
-if (GetActiveProcessorGroupCount() > 1)
-{
-	if (GetProcessProcessorGroups(pid, vGroups) == 0)
+	bool bR = GetAffinityMask(pid, aff.mask);
+	if (GetActiveProcessorGroupCount() > 1)
 	{
-		_ASSERT(0);
-		return false;
+		if (GetProcessProcessorGroups(pid, vGroups) == 0)
+		{
+			_ASSERT(0);
+			return false;
+		}
+		aff.nGroupId = vGroups[0];
 	}
-	aff.nGroupId = vGroups[0];
-}
-else
-{
-	aff.nGroupId = NO_PROCESSOR_GROUP;
-}
-return bR;
+	else
+	{
+		aff.nGroupId = NO_PROCESSOR_GROUP;
+	}
+	return bR;
 }
 
 bool processOperations::IsMultiGroupProcess(const unsigned long pid)
@@ -258,16 +258,16 @@ bool processOperations::SetProcessGroupAffinity(const unsigned long pid, int nPr
 	{
 		return false;
 	}
-	
+
 	using fnZwSetInformationProcess = NTSTATUS(NTAPI*)(__in HANDLE, __in ULONG, __in PVOID, __in ULONG);
-	static fnZwSetInformationProcess _ZwSetInformationProcess = nullptr;	
+	static fnZwSetInformationProcess _ZwSetInformationProcess = nullptr;
 	if (!_ZwSetInformationProcess)
 	{
-		_ZwSetInformationProcess = reinterpret_cast<fnZwSetInformationProcess>(GetProcAddress(GetModuleHandle(L"ntdll.dll"), "ZwSetInformationProcess"));		
+		_ZwSetInformationProcess = reinterpret_cast<fnZwSetInformationProcess>(GetProcAddress(GetModuleHandle(L"ntdll.dll"), "ZwSetInformationProcess"));
 	}
 	_ASSERT(_ZwSetInformationProcess);
 	if (!_ZwSetInformationProcess)
-	{		
+	{
 		return false;
 	}
 
@@ -314,7 +314,7 @@ unsigned long processOperations::GetParentOfProcess(const unsigned long pid)
 }
 
 bool processOperations::GetLogonFromToken(HANDLE hToken, CString& csUser, CString& csDomain)
-{	
+{
 	csUser.Empty();
 	csDomain.Empty();
 
@@ -325,9 +325,9 @@ bool processOperations::GetLogonFromToken(HANDLE hToken, CString& csUser, CStrin
 	SID_NAME_USE SidType;
 
 	bool bSuccess = false;
-	DWORD dwLength = 0;	
+	DWORD dwLength = 0;
 	PTOKEN_USER ptu = NULL;
-	
+
 	if (!hToken)
 	{
 		return false;
@@ -346,17 +346,17 @@ bool processOperations::GetLogonFromToken(HANDLE hToken, CString& csUser, CStrin
 		}
 	}
 
-	if (!GetTokenInformation(hToken, TokenUser, (LPVOID)ptu, dwLength,&dwLength))
+	if (!GetTokenInformation(hToken, TokenUser, (LPVOID)ptu, dwLength, &dwLength))
 	{
 		if (ptu)
 		{
 			HeapFree(GetProcessHeap(), 0, (LPVOID)ptu);
 		}
 		return false;
-	}	
+	}
 
 	if (LookupAccountSid(NULL, ptu->User.Sid, lpName, &dwSizeUser, lpDomain, &dwSizeDomain, &SidType))
-	{		
+	{
 		csUser = lpName;
 		csDomain = lpDomain;
 		bSuccess = true;
@@ -394,12 +394,12 @@ bool processOperations::GetUserNameByToken(const unsigned long pid, CString& csU
 }
 
 
-bool processOperations::GetUserNameForProcess(const unsigned long pid, ATL::CString &csUser, ATL::CString& csDomain)
-{	
+bool processOperations::GetUserNameForProcess(const unsigned long pid, ATL::CString& csUser, ATL::CString& csDomain)
+{
 	csUser.Empty();
-	csDomain.Empty();	
+	csDomain.Empty();
 	if (GetUserNameByToken(pid, csUser, csDomain))
-	{		
+	{
 		return csUser.GetLength();
 	}
 	return 0;
@@ -416,8 +416,8 @@ HWND processOperations::GetLikelyPrimaryWindow(const unsigned long pid)
 	EnumWindows([](HWND hWnd, LPARAM lParam) -> BOOL {
 		auto& data = *(WindowFinderData*)lParam;
 		unsigned long pid = 0;
-		GetWindowThreadProcessId(hWnd, &pid);		
-		if (data.pid != pid || !(GetWindow(hWnd, GW_OWNER) == NULL && IsWindowVisible(hWnd)))			
+		GetWindowThreadProcessId(hWnd, &pid);
+		if (data.pid != pid || !(GetWindow(hWnd, GW_OWNER) == NULL && IsWindowVisible(hWnd)))
 		{
 			return TRUE;
 		}
@@ -428,19 +428,19 @@ HWND processOperations::GetLikelyPrimaryWindow(const unsigned long pid)
 }
 
 bool processOperations::CloseApp(const unsigned long pid, const unsigned long exitCode, const unsigned long millisecondsMaxWait)
-{	
+{
 	bool bR = false;
-	HANDLE hProcess = NULL;		
+	HANDLE hProcess = NULL;
 	hProcess = OpenProcess(SYNCHRONIZE, FALSE, pid);		// only open with SYNCHRONIZE here, we call Terminate as necessary that opens with TERMINATE
 	if (NULL == hProcess)
-	{		
+	{
 		LIBCOMMON_DEBUG_PRINT(L"CloseApp can't open process handle");
 		return true;
 	}
 
 	// first make sure the process isn't already terminated
 	if (WaitForSingleObject(hProcess, 0) != WAIT_OBJECT_0)
-	{		
+	{
 		//
 		// first try graceful close, then forced close
 		//
@@ -451,7 +451,7 @@ bool processOperations::CloseApp(const unsigned long pid, const unsigned long ex
 		{
 			LIBCOMMON_DEBUG_PRINT(L"Found main window for %d", pid);
 			PostMessage(hWndMain, WM_CLOSE, 0, 0);
-			DWORD dwWaitMs = millisecondsMaxWait;				
+			DWORD dwWaitMs = millisecondsMaxWait;
 			if (WaitForSingleObject(hProcess, dwWaitMs) != WAIT_OBJECT_0)
 			{
 				LIBCOMMON_DEBUG_PRINT(L"Timeout");
@@ -459,7 +459,7 @@ bool processOperations::CloseApp(const unsigned long pid, const unsigned long ex
 			}
 			else
 			{
-				LIBCOMMON_DEBUG_PRINT(L"Wait on process handle satisfied");				
+				LIBCOMMON_DEBUG_PRINT(L"Wait on process handle satisfied");
 				bR = true;
 			}
 		}
@@ -472,6 +472,6 @@ bool processOperations::CloseApp(const unsigned long pid, const unsigned long ex
 		}
 	}
 	CloseHandle(hProcess);
-	
+
 	return bR;
 }

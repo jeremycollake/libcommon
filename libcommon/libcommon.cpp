@@ -134,7 +134,8 @@ void AppendCharacterIfMissing(ATL::CString& csStr, const WCHAR wChar)
 	}
 }
 
-bool wildcmpEx(const TCHAR* wild, const TCHAR* str) {
+bool wildcmpEx(const TCHAR* wild, const TCHAR* str) 
+{
 	int slen = (int)_tcslen(str);
 	int wlen = (int)_tcslen(wild);
 
@@ -213,8 +214,8 @@ bool wildcmpEx(const TCHAR* wild, const TCHAR* str) {
 }
 
 
-bool wildicmpEx(const TCHAR* wild, const TCHAR* str) {
-
+bool wildicmpEx(const TCHAR* wild, const TCHAR* str) 
+{
 	_ASSERT(str);
 	int slen = (int)_tcslen(str);
 	int wlen = (int)_tcslen(wild);

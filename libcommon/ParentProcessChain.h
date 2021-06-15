@@ -17,7 +17,7 @@ class ParentProcessChain
 	const int MaxDepth = 50;		// set a max depth in case of some errant circular resolution (should never occur, but.. e.g. 4->0 0->4)
 	std::mutex processMaps;
 public:
-	void AddPID(const DWORD dwPid, const WCHAR* pwszBasename, unsigned __int64 timeCreateChild, const DWORD dwParentPid, unsigned __int64 timeCreateParentIfKnown=0 /* optional, but preferred */)
+	void AddPID(const DWORD dwPid, const WCHAR* pwszBasename, unsigned __int64 timeCreateChild, const DWORD dwParentPid, unsigned __int64 timeCreateParentIfKnown = 0 /* optional, but preferred */)
 	{
 		std::lock_guard<std::mutex> lock(processMaps);
 		_ASSERT(mapPIDtoParentPID.find(dwPid) == mapPIDtoParentPID.end());
@@ -47,7 +47,7 @@ public:
 			dwFixedParentPID = 0;
 		}
 		mapPIDtoParentPID[dwPid] = dwFixedParentPID;
-		
+
 		// check for infinite growth (assumes process count < 4096)
 		_ASSERT(mapPIDtoBasenames.size() < 4096 && mapPIDtoParentPID.size() < 4096);
 	}
@@ -98,10 +98,10 @@ public:
 			if (nDepth > MaxDepth)
 			{
 				return false;
-			}			
+			}
 			DWORD dwLastChildPID = it->first;
 			it = mapPIDtoParentPID.find(dwParentPID);
-			if (it!=mapPIDtoParentPID.end() && dwLastChildPID == it->second)
+			if (it != mapPIDtoParentPID.end() && dwLastChildPID == it->second)
 			{
 				_ASSERT(0);
 				//NEW_DEBUG_PRINT(L"Circular chain at %d:%s is child of %d:%s, depth now %d", it->first, mapPIDtoBasenames[it->first], it->second, parentname->second, nDepth);
@@ -109,11 +109,11 @@ public:
 			}
 		}
 		return false;
-	}	
+	}
 	bool GetCreationTime(DWORD dwPid, unsigned __int64& creationTime)
-	{		
+	{
 		auto it = mapPIDToCreationTime.find(dwPid);
-		if(it!=mapPIDToCreationTime.end())
+		if (it != mapPIDToCreationTime.end())
 		{
 			creationTime = it->second;
 			return true;
@@ -123,7 +123,7 @@ public:
 		{
 			//DEBUG_PRINT(L"Opened PID %d for creation time check", dwPid);
 			unsigned __int64 exitTime = 0, kernelTime = 0, userTime = 0;
-			GetProcessTimes(hProcess, (FILETIME*)& creationTime, (FILETIME*)& exitTime, (FILETIME*)& kernelTime, (FILETIME*)& userTime);
+			GetProcessTimes(hProcess, (FILETIME*)&creationTime, (FILETIME*)&exitTime, (FILETIME*)&kernelTime, (FILETIME*)&userTime);
 			CloseHandle(hProcess);
 			mapPIDToCreationTime[dwPid] = creationTime;
 			return true;
@@ -131,7 +131,7 @@ public:
 		else
 		{
 			//DEBUG_PRINT(L"Could not open PID %d for creation time check", dwPid);
-			creationTime = 0;			
+			creationTime = 0;
 		}
 		return false;
 	}
