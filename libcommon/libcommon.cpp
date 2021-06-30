@@ -99,6 +99,17 @@ DWORD GetWindows10Build()
 	return dwBulldNum;
 }
 
+// temporary, pending addition to WinSDK
+bool IsWindows11OrGreater()
+{
+	if (!IsWindows10OrGreater())
+	{
+		return false;
+	}
+	const static int WIN11_MIN_BUILD_NUMBER = 22000;
+	return GetWindows10Build() >= WIN11_MIN_BUILD_NUMBER ? true : false;
+}
+
 void RemoveTrailingBackslash(ATL::CString& csStr)
 {
 	int nLen = csStr.GetLength();

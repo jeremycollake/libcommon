@@ -21,6 +21,8 @@ using fnRtlGetNtVersionNumbers = void (WINAPI*)(LPDWORD major, LPDWORD minor, LP
 
 // returns 0 if not Windows 10
 DWORD GetWindows10Build();
+// temporary, pending addition to WinSDK
+bool IsWindows11OrGreater();
 
 bool wildcmpEx(const TCHAR* wild, const TCHAR* str);
 bool wildicmpEx(const TCHAR* wild, const TCHAR* str);
