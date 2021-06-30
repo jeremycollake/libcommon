@@ -113,21 +113,18 @@ void FixDarkScrollBar()
 	}
 }
 
-#define LAST_VERIFIED_SUPPORTED_DARKMODE_WIN10_BUILD 21387
-// #define BUILD_ALLOWABLE_MARGIN 5000		// max build # over last known supported  (check disabled)
-
-bool CheckWin10BuildNumber(const DWORD dwBuildNumber, const bool bAllowFutureWin10Builds_Unsafe)
+bool CheckWindowsBuildNumber(const DWORD dwBuildNumber)
 {
-	// check minimum supported Win10 build number
-	// maximum supported Win10 build check disabled below
-	if (17763 <= dwBuildNumber) // && (dwBuildNumber <= (LAST_VERIFIED_SUPPORTED_DARKMODE_WIN10_BUILD + BUILD_ALLOWABLE_MARGIN) || bAllowFutureWin10Builds_Unsafe))
+	// check minimum supported Win10 build number	
+	static const int DARKMODE_MINIMUM_WIN10_BUILD = 17763;
+	if (DARKMODE_MINIMUM_WIN10_BUILD <= dwBuildNumber)
 	{
 		return true;
 	}
 	return false;
 }
 
-void InitDarkMode(const bool bAllowFutureWin10Builds_Unsafe)
+void InitDarkMode()
 {
 	fnRtlGetNtVersionNumbers RtlGetNtVersionNumbers = reinterpret_cast<fnRtlGetNtVersionNumbers>(GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "RtlGetNtVersionNumbers"));
 	if (RtlGetNtVersionNumbers)
@@ -135,7 +132,7 @@ void InitDarkMode(const bool bAllowFutureWin10Builds_Unsafe)
 		DWORD major, minor;
 		RtlGetNtVersionNumbers(&major, &minor, &g_buildNumber);
 		g_buildNumber &= ~0xF0000000;
-		if (major == 10 && minor == 0 && CheckWin10BuildNumber(g_buildNumber, bAllowFutureWin10Builds_Unsafe))
+		if (major == 10 && minor == 0 && CheckWindowsBuildNumber(g_buildNumber))
 		{
 			HMODULE hUxtheme = LoadLibraryExW(L"uxtheme.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
 			if (hUxtheme)
