@@ -1,6 +1,13 @@
 #include "pch.h"
 #include "processOperations.h"
 
+HANDLE processOperations::OpenQueryHandle(const unsigned long pid)
+{
+	HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, pid);
+	if (NULL == hProcess) hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+	return hProcess;
+}
+
 // this is used when CPU core count changes (e.g. as the result of UEFI adjustment) but we still want to apply CPU affinity rules
 unsigned long long processOperations::LimitAffinityToInstalledCPUCores(unsigned long long bitMask)
 {
@@ -186,6 +193,16 @@ bool processOperations::SetPriorityBoost(const unsigned long pid, const bool bPr
 	bool bR = ::SetProcessPriorityBoost(hProcess, bPriorityBoostEnabled ? FALSE : TRUE) ? true : false;
 	CloseHandle(hProcess);
 	return bR;
+}
+
+unsigned long processOperations::GetPriorityClass(const unsigned long pid)
+{
+	HANDLE hProcess = OpenQueryHandle(pid);
+	if (NULL == hProcess) return static_cast<unsigned long>(-1);
+
+	unsigned long nRet = ::GetPriorityClass(hProcess);
+	CloseHandle(hProcess);
+	return nRet;
 }
 
 bool processOperations::SetPriorityClass(const unsigned long pid, const long priorityClass)

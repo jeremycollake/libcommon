@@ -31,6 +31,7 @@ public:
 	{
 		GetSystemInfo(&sysInfo);
 	}
+	HANDLE OpenQueryHandle(const unsigned long pid);
 	bool GetAffinityMask(const unsigned long pid, unsigned long long& bitMask);
 	bool SetAffinityMask(const unsigned long pid, const unsigned long long bitMask, const int group = NO_PROCESSOR_GROUP);
 	// get CPU affinity mask with group
@@ -42,6 +43,7 @@ public:
 	bool SetGroupAffinityForAllThreads(const unsigned long pid, const int group, const unsigned long long bitMask);
 
 	bool SetPriorityBoost(const unsigned long pid, const bool bPriorityBoostEnabled);
+	unsigned long GetPriorityClass(const unsigned long pid);
 	bool SetPriorityClass(const unsigned long pid, const long priorityClass);
 	bool TrimWorkingSetSize(const unsigned long pid);
 	bool Terminate(const unsigned long pid, const unsigned long exitCode);
@@ -56,6 +58,5 @@ public:
 
 	unsigned long long LimitAffinityToInstalledCPUCores(unsigned long long bitmask);
 
-	HWND GetLikelyPrimaryWindow(const unsigned long pid);
-
+	HWND GetLikelyPrimaryWindow(const unsigned long pid);	
 };
