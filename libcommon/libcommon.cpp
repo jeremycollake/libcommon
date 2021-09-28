@@ -83,6 +83,19 @@ bool IsFileWritable(const WCHAR* pwszFilepath)
 	return false;
 }
 
+// build Windows version string for 10+ or Server 2019+, returns false if can't be built (e.g. Win7)
+bool BuildWindows10OrGreaterVersionString(ATL::CString& csVersionString)
+{
+	if (IsWindows10OrGreater())
+	{
+		csVersionString.Format(L"Windows %s (%d)", (IsWindowsServer() ? L"Server" : (IsWindows11OrGreater() ? L"11" : L"10")),
+			GetWindows10Build());
+		return true;
+	}
+	csVersionString.Empty();
+	return false;
+}
+
 DWORD GetWindows10Build()
 {
 	DWORD dwBulldNum = 0;

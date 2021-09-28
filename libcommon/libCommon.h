@@ -19,6 +19,8 @@ void AppendCharacterIfMissing(ATL::CString& csStr, const WCHAR wChar);
 
 using fnRtlGetNtVersionNumbers = void (WINAPI*)(LPDWORD major, LPDWORD minor, LPDWORD build);
 
+// build Windows version string for 10+ or Server 2019+, returns false if can't be built (e.g. Win7)
+bool BuildWindows10OrGreaterVersionString(ATL::CString& csVersionString);
 // returns 0 if not Windows 10
 DWORD GetWindows10Build();
 // temporary, pending addition to WinSDK
