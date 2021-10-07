@@ -44,7 +44,19 @@ bool ListView_InitColumns(const HWND hWndListview, const HMODULE hResourceModule
 		else
 		{
 			// calculate remainding listview width, minus vertical scrollbar width (even if it doesn't exist)
-			lvCol.cx = (((r.right - r.left) - nTotalRunningWidth) - nScrollBarWidth);
+			int nSizeAdjust = nTotalRunningWidth + nScrollBarWidth;
+			if ((r.right - r.left) >= nSizeAdjust)
+			{
+				lvCol.cx = (r.right - r.left) - nSizeAdjust;
+			}
+			else
+			{
+				// no room for column, so use some constant size, and indicate failure
+				const static int FAILSAFE_LV_COL_WIDTH = 100;
+				lvCol.cx = FAILSAFE_LV_COL_WIDTH;
+				bSuccess = false;
+			}
+			
 		}
 		if (ListView_InsertColumn(hWndListview, nIndex, &lvCol) == -1)
 		{
