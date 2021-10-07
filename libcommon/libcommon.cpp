@@ -55,8 +55,7 @@ bool ListView_InitColumns(const HWND hWndListview, const HMODULE hResourceModule
 				const static int FAILSAFE_LV_COL_WIDTH = 100;
 				lvCol.cx = FAILSAFE_LV_COL_WIDTH;
 				bSuccess = false;
-			}
-			
+			}			
 		}
 		if (ListView_InsertColumn(hWndListview, nIndex, &lvCol) == -1)
 		{
