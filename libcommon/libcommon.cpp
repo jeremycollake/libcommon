@@ -9,6 +9,67 @@
 #include <string>
 #include <cctype>
 
+bool ListView_InitColumns(const HWND hWndListview, const HMODULE hResourceModule,
+	const std::vector<std::pair<int, int>>& vecStringIDAndWidthPairs)
+{
+	bool bSuccess = true;
+
+	RECT r;
+	GetClientRect(hWndListview, &r);
+
+	// we'll leave room for the vertical scrollbar, even if it doesn't exist
+	// if we don't, then a horizontal scrollbar will also occur whenever a vertical scrollbar is present
+	int nScrollBarWidth = GetSystemMetrics(SM_CXVSCROLL);
+
+	unsigned int nTotalRunningWidth = 0;
+	unsigned int nIndex = 0;
+	for (auto& columnInfo : vecStringIDAndWidthPairs)
+	{
+		WCHAR wszBuf[1024] = { 0 };
+		if (!LoadString(hResourceModule, columnInfo.first, wszBuf, _countof(wszBuf)))
+		{
+			wcscpy_s(wszBuf, L"[Error: Missing string]");
+			bSuccess = false;
+			// continue on, non-critical failure
+		}
+
+		LVCOLUMN lvCol;
+		lvCol.mask = LVCF_TEXT | LVCF_WIDTH;
+		lvCol.pszText = wszBuf;
+		if (columnInfo.second != -1)
+		{
+			lvCol.cx = columnInfo.second;
+			nTotalRunningWidth += columnInfo.second;
+		}
+		else
+		{
+			// calculate remainding listview width, minus vertical scrollbar width (even if it doesn't exist)
+			int nSizeAdjust = nTotalRunningWidth + nScrollBarWidth;
+			if ((r.right - r.left) >= nSizeAdjust)
+			{
+				lvCol.cx = (r.right - r.left) - nSizeAdjust;
+			}
+			else
+			{
+				// no room for column, so use some constant size, and indicate failure
+				const static int FAILSAFE_LV_COL_WIDTH = 100;
+				lvCol.cx = FAILSAFE_LV_COL_WIDTH;
+				bSuccess = false;
+			}			
+		}
+		if (ListView_InsertColumn(hWndListview, nIndex, &lvCol) == -1)
+		{
+			bSuccess = false;
+			// critical failure since it will impact listview column indices
+			break;
+		}
+		nIndex++;
+	}
+
+	_ASSERT(bSuccess);
+	return bSuccess;
+}
+
 void ListView_SetSingleSelection(const HWND hWndListview, const int nIndex)
 {
 	ListView_UnselectAll(hWndListview);
