@@ -19,19 +19,19 @@ public:
 	GroupAffinity()
 	{
 		nGroupId = NO_PROCESSOR_GROUP;
-		mask = 0;		
+		mask = 0;
 	}
-	GroupAffinity(const GROUP_AFFINITY &g)
+	GroupAffinity(const GROUP_AFFINITY& g)
 	{
 		*this = g;
 	}
 	GroupAffinity& operator = (const GROUP_AFFINITY& g) {
-		mask = g.Mask;		
+		mask = g.Mask;
 		nGroupId = g.Group;
 		return *this;
-	}		
+	}
 	bool operator == (const GroupAffinity& o) const {
-		return (mask == o.mask 
+		return (mask == o.mask
 			&& (nGroupId == o.nGroupId || nGroupId == NO_PROCESSOR_GROUP || o.nGroupId == NO_PROCESSOR_GROUP));
 	}
 	bool operator != (const GroupAffinity& o) const {
@@ -74,5 +74,5 @@ public:
 
 	unsigned long long LimitAffinityToInstalledCPUCores(unsigned long long bitmask);
 
-	HWND GetLikelyPrimaryWindow(const unsigned long pid);	
+	HWND GetLikelyPrimaryWindow(const unsigned long pid);
 };
