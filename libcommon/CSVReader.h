@@ -21,7 +21,7 @@ class CSVReader
 	// to know if the source file is still the same one (or has been rotated/deleted)
 	mutex mutexBookmark;
 	FILETIME timeCreatedLastAccessedFile = { 0, 0 };
-	int positionBookmark = 0;
+	DWORD positionBookmark = 0;
 
 public:
 	void SetSourceFilePath(const WCHAR* sourcePath)
@@ -139,6 +139,6 @@ public:
 		}
 
 		CloseHandle(hFile);
-		return rows.size();
+		return static_cast<int>(rows.size());
 	}
 };
