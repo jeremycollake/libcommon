@@ -36,7 +36,7 @@ public:
 		hImageList = ImageList_Create(16, 16, ILC_COLOR32, 1, _Imagelist_MaxSize);
 		_ASSERT(hImageList);		
 		
-		// if failsafe icon was not supplied, grab one from svchost.exe
+		// if failsafe icon was not supplied, load one from disk - svchost.exe
 		HICON hSelectedFailsafeIcon = hSuppliedFailsafeIcon;
 		if (NULL == hSelectedFailsafeIcon)
 		{
@@ -48,7 +48,7 @@ public:
 			hSelectedFailsafeIcon = GetIconForFilename(csSvcHostPath);
 		}
 
-		// the failsafe icon is now expected to exist
+		// failsafe icon is now expected to exist
 		_ASSERT(hSelectedFailsafeIcon);
 
 		// add failsafe icon and 1 ref to it, since it will always persist
@@ -74,7 +74,7 @@ public:
 		_ASSERT(hIcon && hImageList);
 		if (hIcon)
 		{
-			ImageList_ReplaceIcon(hImageList, 0, hIcon);
+			ImageList_ReplaceIcon(hImageList, nFailsafeIconIndex, hIcon);
 		}
 	}
 	HIMAGELIST GetImageList()
