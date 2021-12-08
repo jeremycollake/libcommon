@@ -14,6 +14,7 @@ class ProcessIconImageList
 {
 	const int _Imagelist_MaxSize = 256;
 	HIMAGELIST hImageList;
+	int nFailsafeIconIndex;
 	std::mutex mutexMaps;
 	std::map<const int, int> mapImgIdxToRefCount;
 	std::map<const ATL::CString, int> mapFilenameToImgIdx;
@@ -29,27 +30,39 @@ class ProcessIconImageList
 		return ExtractAssociatedIcon(GetModuleHandle(NULL), const_cast<LPWSTR>(pwszFilename), &wIndex);
 	}
 public:
-	ProcessIconImageList(HICON hIconFailsafe = NULL)
+	ProcessIconImageList(const HICON hSuppliedFailsafeIcon = NULL)
 	{
+		// create imagelist and init with failsafe icon, for when an app icon is not avail
 		hImageList = ImageList_Create(16, 16, ILC_COLOR32, 1, _Imagelist_MaxSize);
-		_ASSERT(hImageList);
-		bool bNeedsUnload = false;
-		// index 0 will always be fail-safe icon		
-		if (NULL == hIconFailsafe)
+		_ASSERT(hImageList);		
+		
+		// if failsafe icon was not supplied, load one from disk - svchost.exe
+		HICON hSelectedFailsafeIcon = hSuppliedFailsafeIcon;
+		if (NULL == hSelectedFailsafeIcon)
 		{
 			ICON_DEBUG_PRINT(L"No failsafe icon supplied, inferring icon");
 			WCHAR wszServiceHostPath[MAX_PATH * 2] = { 0 };
 			GetSystemDirectory(wszServiceHostPath, _countof(wszServiceHostPath));
 			ATL::CString csSvcHostPath;
 			csSvcHostPath.Format(L"%s\\svchost.exe", wszServiceHostPath);
-			hIconFailsafe = GetIconForFilename(csSvcHostPath);
-			bNeedsUnload = true;
+			hSelectedFailsafeIcon = GetIconForFilename(csSvcHostPath);
 		}
-		_ASSERT(hIconFailsafe);
-		ImageList_AddIcon(hImageList, hIconFailsafe);
-		if (hIconFailsafe && bNeedsUnload)
+
+		// failsafe icon is now expected to exist
+		_ASSERT(hSelectedFailsafeIcon);
+
+		// add failsafe icon and 1 ref to it, since it will always persist
+		nFailsafeIconIndex = ImageList_AddIcon(hImageList, hSelectedFailsafeIcon);
+		_ASSERT(nFailsafeIconIndex == 0);
+
+		mapFilenameToImgIdx[L""] = nFailsafeIconIndex;
+		mapImgIdxToRefCount[nFailsafeIconIndex] = 1;
+
+		// if failsafe icon was loaded above instead of supplied by caller, then needs destroyed (imagelist addition duplicates)
+		if (hSelectedFailsafeIcon
+			&& hSelectedFailsafeIcon != hSuppliedFailsafeIcon)
 		{
-			DestroyIcon(hIconFailsafe);
+			DestroyIcon(hSelectedFailsafeIcon);
 		}
 	}
 	~ProcessIconImageList()
@@ -61,7 +74,7 @@ public:
 		_ASSERT(hIcon && hImageList);
 		if (hIcon)
 		{
-			ImageList_ReplaceIcon(hImageList, 0, hIcon);
+			ImageList_ReplaceIcon(hImageList, nFailsafeIconIndex, hIcon);
 		}
 	}
 	HIMAGELIST GetImageList()
@@ -101,18 +114,13 @@ public:
 			ICON_DEBUG_PRINT(L"Loading icon for %s", csFile.GetString());
 			// icon not loaded, load it and add to imagelist
 			HICON hIcon = GetIconForFilename(pwszFile);
-			int nImageIndex = 0;
-			if (!hIcon)
+			int nImageIndex = nFailsafeIconIndex; // default to failsafe icon
+			if (hIcon)
 			{
-				// icon can't be loaded, use index 0 (fail-safe icon)				
-				nImageIndex = 0;
-			}
-			else
-			{
+				// icon loaded, add it to the imagelist and use
 				nImageIndex = ImageList_AddIcon(hImageList, hIcon);
+				// destroy icon since imagelist addition duplicates
 				DestroyIcon(hIcon);
-				// to ensure exists before increment
-				mapImgIdxToRefCount[nImageIndex] = 0;
 			}
 			mapImgIdxToRefCount[nImageIndex]++;
 			mapFilenameToImgIdx[csFile] = nImageIndex;
@@ -136,14 +144,15 @@ public:
 
 		int nImageIndex = mapFilenameToImgIdx[csFile];
 		if (--mapImgIdxToRefCount[nImageIndex] == 0)
-		{
-			ICON_DEBUG_PRINT(L"Reference count for %d %s now 0. Removing!", nImageIndex, csFile);
+		{			
+			ICON_DEBUG_PRINT(L"Reference count for %d %s now 0. Removing!", nImageIndex, csFile);			
+			_ASSERT(nImageIndex != nFailsafeIconIndex);
+			
 			ImageList_Remove(hImageList, nImageIndex);
-			ICON_DEBUG_PRINT(L"Adjusting indices > %d", nImageIndex);
-
+			
 			mapFilenameToImgIdx.erase(csFile);
 
-			// decrement mapFilenameToImgIdx if > deleted index
+			// removing an icon from the imagelist changes the higher indices, so adjust prior refs
 			for (auto& itFilesnameToIdx : mapFilenameToImgIdx)
 			{
 				_ASSERT(itFilesnameToIdx.second != nImageIndex);
@@ -178,14 +187,14 @@ public:
 		ICON_DEBUG_PRINT(L"icon map sizes: %d %d", mapImgIdxToRefCount.size(), mapFilenameToImgIdx.size());
 		//DumpMaps();
 	}
-private: void DumpMaps()
-{
-	ICON_DEBUG_PRINT(L"map dump --------------");
-	for (auto i : mapFilenameToImgIdx)
+private:
+	void DumpMaps()
 	{
-		ICON_DEBUG_PRINT(L" %s (%d) -> %d", i.first, i.second, mapImgIdxToRefCount[i.second]);
+		ICON_DEBUG_PRINT(L"map dump --------------");
+		for (auto i : mapFilenameToImgIdx)
+		{
+			ICON_DEBUG_PRINT(L" %s (%d) -> %d", i.first, i.second, mapImgIdxToRefCount[i.second]);
+		}
+		ICON_DEBUG_PRINT(L"map dump ends ---------------");
 	}
-	ICON_DEBUG_PRINT(L"map dump ends ---------------");
-
-}
 };
