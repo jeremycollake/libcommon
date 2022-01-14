@@ -39,11 +39,11 @@ public:
 	}
 };
 
-class processOperations
+class ProcessOperations
 {
 	SYSTEM_INFO sysInfo;
 public:
-	processOperations()
+	ProcessOperations()
 	{
 		GetSystemInfo(&sysInfo);
 	}

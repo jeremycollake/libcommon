@@ -189,8 +189,8 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="processOperations.cpp" />
-    <ClCompile Include="productOptions.cpp" />
+    <ClCompile Include="ProcessOperations.cpp" />
+    <ClCompile Include="ProductOptions.cpp" />
     <ClCompile Include="win32-darkmode\win32-darkmode\darkmode.cpp">
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">../../pch.h</PrecompiledHeaderFile>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">../../pch.h</PrecompiledHeaderFile>
