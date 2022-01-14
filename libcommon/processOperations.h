@@ -67,9 +67,9 @@ public:
 	bool SuspendProcess(const unsigned long pid);
 	bool ResumeProcess(const unsigned long pid);
 
-	bool GetUserNameByToken(const unsigned long pid, CString& csUser, CString& csDomain);
+	bool GetUserNameByToken(const unsigned long pid, ATL::CString& csUser, ATL::CString& csDomain);
 	unsigned long GetParentOfProcess(const unsigned long pid);
-	bool GetLogonFromToken(HANDLE hToken, CString& csUser, CString& csDomain);
+	bool GetLogonFromToken(HANDLE hToken, ATL::CString& csUser, ATL::CString& csDomain);
 	bool GetUserNameForProcess(const unsigned long pid, ATL::CString& csUser, ATL::CString& csDomain);
 
 	unsigned long long LimitAffinityToInstalledCPUCores(unsigned long long bitmask);

@@ -330,7 +330,7 @@ unsigned long processOperations::GetParentOfProcess(const unsigned long pid)
 	return retParentPid;
 }
 
-bool processOperations::GetLogonFromToken(HANDLE hToken, CString& csUser, CString& csDomain)
+bool processOperations::GetLogonFromToken(HANDLE hToken, ATL::CString& csUser, ATL::CString& csDomain)
 {
 	csUser.Empty();
 	csDomain.Empty();
@@ -386,7 +386,7 @@ bool processOperations::GetLogonFromToken(HANDLE hToken, CString& csUser, CStrin
 	return bSuccess;
 }
 
-bool processOperations::GetUserNameByToken(const unsigned long pid, CString& csUser, CString& csDomain)
+bool processOperations::GetUserNameByToken(const unsigned long pid, ATL::CString& csUser, ATL::CString& csDomain)
 {
 	HANDLE hProcess = NULL;
 	hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, pid);
