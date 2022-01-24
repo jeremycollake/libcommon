@@ -1,7 +1,7 @@
 #include "pch.h"
-#include "processOperations.h"
+#include "ProcessOperations.h"
 
-HANDLE processOperations::OpenQueryHandle(const unsigned long pid)
+HANDLE ProcessOperations::OpenQueryHandle(const unsigned long pid)
 {
 	HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, pid);
 	if (NULL == hProcess) hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
@@ -9,7 +9,7 @@ HANDLE processOperations::OpenQueryHandle(const unsigned long pid)
 }
 
 // this is used when CPU core count changes (e.g. as the result of UEFI adjustment) but we still want to apply CPU affinity rules
-unsigned long long processOperations::LimitAffinityToInstalledCPUCores(unsigned long long bitMask)
+unsigned long long ProcessOperations::LimitAffinityToInstalledCPUCores(unsigned long long bitMask)
 {
 	// bitwise AND by available CPU cores		
 	_ASSERT(sysInfo.dwActiveProcessorMask);
@@ -21,7 +21,7 @@ unsigned long long processOperations::LimitAffinityToInstalledCPUCores(unsigned 
 	return newBitMask;
 }
 
-bool processOperations::SetAffinityMask(const unsigned long pid, const unsigned long long bitMask, const int group)
+bool ProcessOperations::SetAffinityMask(const unsigned long pid, const unsigned long long bitMask, const int group)
 {
 	HANDLE hProcess = OpenProcess(PROCESS_SET_INFORMATION, FALSE, pid);
 	if (NULL == hProcess) return false;
@@ -50,7 +50,7 @@ bool processOperations::SetAffinityMask(const unsigned long pid, const unsigned 
 	return bR;
 }
 
-bool processOperations::SetGroupAffinityForAllThreads(const unsigned long pid, const int group, const unsigned long long bitMask)
+bool ProcessOperations::SetGroupAffinityForAllThreads(const unsigned long pid, const int group, const unsigned long long bitMask)
 {
 	//LIBCOMMON_DEBUG_PRINT(L"SetGroupAffinityForAllThreads");
 	HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
@@ -101,7 +101,7 @@ bool processOperations::SetGroupAffinityForAllThreads(const unsigned long pid, c
 	return bR;
 }
 
-bool processOperations::GetAffinityMask(const unsigned long pid, unsigned long long& bitMask)
+bool ProcessOperations::GetAffinityMask(const unsigned long pid, unsigned long long& bitMask)
 {
 	// do NOT call GetGroupAffinity here, circular dependency
 	HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, pid);
@@ -114,7 +114,7 @@ bool processOperations::GetAffinityMask(const unsigned long pid, unsigned long l
 	return bR;
 }
 
-bool processOperations::GetGroupAffinity(const unsigned long pid, GroupAffinity& aff)
+bool ProcessOperations::GetGroupAffinity(const unsigned long pid, GroupAffinity& aff)
 {
 	// we can either use NT native API to get the default group, or enumerate groups and assume first is the default
 	// for now use standard documented API
@@ -136,7 +136,7 @@ bool processOperations::GetGroupAffinity(const unsigned long pid, GroupAffinity&
 	return bR;
 }
 
-bool processOperations::IsMultiGroupProcess(const unsigned long pid)
+bool ProcessOperations::IsMultiGroupProcess(const unsigned long pid)
 {
 	std::vector<USHORT> vuGroups;
 	if (GetProcessProcessorGroups(pid, vuGroups) > 1)
@@ -146,7 +146,7 @@ bool processOperations::IsMultiGroupProcess(const unsigned long pid)
 	return false;
 }
 
-size_t processOperations::GetProcessProcessorGroups(const unsigned long pid, std::vector<USHORT>& vGroups)
+size_t ProcessOperations::GetProcessProcessorGroups(const unsigned long pid, std::vector<USHORT>& vGroups)
 {
 	vGroups.clear();
 
@@ -186,7 +186,7 @@ size_t processOperations::GetProcessProcessorGroups(const unsigned long pid, std
 	return vGroups.size();
 }
 
-bool processOperations::SetPriorityBoost(const unsigned long pid, const bool bPriorityBoostEnabled)
+bool ProcessOperations::SetPriorityBoost(const unsigned long pid, const bool bPriorityBoostEnabled)
 {
 	HANDLE hProcess = OpenProcess(PROCESS_SET_INFORMATION, FALSE, pid);
 	if (NULL == hProcess) return false;
@@ -195,7 +195,7 @@ bool processOperations::SetPriorityBoost(const unsigned long pid, const bool bPr
 	return bR;
 }
 
-unsigned long processOperations::GetPriorityClass(const unsigned long pid)
+unsigned long ProcessOperations::GetPriorityClass(const unsigned long pid)
 {
 	HANDLE hProcess = OpenQueryHandle(pid);
 	if (NULL == hProcess) return static_cast<unsigned long>(-1);
@@ -205,7 +205,7 @@ unsigned long processOperations::GetPriorityClass(const unsigned long pid)
 	return nRet;
 }
 
-bool processOperations::SetPriorityClass(const unsigned long pid, const long priorityClass)
+bool ProcessOperations::SetPriorityClass(const unsigned long pid, const long priorityClass)
 {
 	HANDLE hProcess = OpenProcess(PROCESS_SET_INFORMATION, FALSE, pid);
 	if (NULL == hProcess) return false;
@@ -214,7 +214,7 @@ bool processOperations::SetPriorityClass(const unsigned long pid, const long pri
 	return bR;
 }
 
-bool processOperations::TrimWorkingSetSize(const unsigned long pid)
+bool ProcessOperations::TrimWorkingSetSize(const unsigned long pid)
 {
 	HANDLE hProcess = OpenProcess(PROCESS_SET_QUOTA, FALSE, pid);
 	if (NULL == hProcess) return false;
@@ -224,7 +224,7 @@ bool processOperations::TrimWorkingSetSize(const unsigned long pid)
 }
 
 // returns true if process terminates, or is already terminated
-bool processOperations::Terminate(const unsigned long pid, const unsigned long exitCode)
+bool ProcessOperations::Terminate(const unsigned long pid, const unsigned long exitCode)
 {
 	HANDLE hProcess = OpenProcess(SYNCHRONIZE | PROCESS_TERMINATE, FALSE, pid);
 	if (NULL == hProcess) return true;  // return successful	
@@ -237,7 +237,7 @@ bool processOperations::Terminate(const unsigned long pid, const unsigned long e
 	return bR;
 }
 
-bool processOperations::SuspendProcess(const unsigned long pid)
+bool ProcessOperations::SuspendProcess(const unsigned long pid)
 {
 	HANDLE hProcess = OpenProcess(PROCESS_SUSPEND_RESUME, FALSE, pid);
 	if (NULL == hProcess) return false;
@@ -249,7 +249,7 @@ bool processOperations::SuspendProcess(const unsigned long pid)
 	return bR;
 }
 
-bool processOperations::ResumeProcess(const unsigned long pid)
+bool ProcessOperations::ResumeProcess(const unsigned long pid)
 {
 	HANDLE hProcess = OpenProcess(PROCESS_SUSPEND_RESUME, FALSE, pid);
 	if (NULL == hProcess) return false;
@@ -261,7 +261,7 @@ bool processOperations::ResumeProcess(const unsigned long pid)
 	return bR;
 }
 
-bool processOperations::SetProcessGroupAffinity(const unsigned long pid, int nProcessorGroup, unsigned long long maskAff)
+bool ProcessOperations::SetProcessGroupAffinity(const unsigned long pid, int nProcessorGroup, unsigned long long maskAff)
 {
 	_ASSERT(nProcessorGroup >= 0 && nProcessorGroup < 256);
 
@@ -302,7 +302,7 @@ bool processOperations::SetProcessGroupAffinity(const unsigned long pid, int nPr
 	return (ntstatus == 0) ? true : false;
 }
 
-unsigned long processOperations::GetParentOfProcess(const unsigned long pid)
+unsigned long ProcessOperations::GetParentOfProcess(const unsigned long pid)
 {
 	HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, pid);
 	if (INVALID_HANDLE_VALUE == hSnapshot)
@@ -330,7 +330,7 @@ unsigned long processOperations::GetParentOfProcess(const unsigned long pid)
 	return retParentPid;
 }
 
-bool processOperations::GetLogonFromToken(HANDLE hToken, CString& csUser, CString& csDomain)
+bool ProcessOperations::GetLogonFromToken(HANDLE hToken, ATL::CString& csUser, ATL::CString& csDomain)
 {
 	csUser.Empty();
 	csDomain.Empty();
@@ -386,7 +386,7 @@ bool processOperations::GetLogonFromToken(HANDLE hToken, CString& csUser, CStrin
 	return bSuccess;
 }
 
-bool processOperations::GetUserNameByToken(const unsigned long pid, CString& csUser, CString& csDomain)
+bool ProcessOperations::GetUserNameByToken(const unsigned long pid, ATL::CString& csUser, ATL::CString& csDomain)
 {
 	HANDLE hProcess = NULL;
 	hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, pid);
@@ -411,7 +411,7 @@ bool processOperations::GetUserNameByToken(const unsigned long pid, CString& csU
 }
 
 
-bool processOperations::GetUserNameForProcess(const unsigned long pid, ATL::CString& csUser, ATL::CString& csDomain)
+bool ProcessOperations::GetUserNameForProcess(const unsigned long pid, ATL::CString& csUser, ATL::CString& csDomain)
 {
 	csUser.Empty();
 	csDomain.Empty();
@@ -423,7 +423,7 @@ bool processOperations::GetUserNameForProcess(const unsigned long pid, ATL::CStr
 }
 
 
-HWND processOperations::GetLikelyPrimaryWindow(const unsigned long pid)
+HWND ProcessOperations::GetLikelyPrimaryWindow(const unsigned long pid)
 {
 	struct WindowFinderData {
 		unsigned long pid;
@@ -444,7 +444,7 @@ HWND processOperations::GetLikelyPrimaryWindow(const unsigned long pid)
 	return data.hWndLikelyPrimary;
 }
 
-bool processOperations::CloseApp(const unsigned long pid, const unsigned long exitCode, const unsigned long millisecondsMaxWait)
+bool ProcessOperations::CloseApp(const unsigned long pid, const unsigned long exitCode, const unsigned long millisecondsMaxWait)
 {
 	bool bR = false;
 	HANDLE hProcess = NULL;
@@ -485,7 +485,6 @@ bool processOperations::CloseApp(const unsigned long pid, const unsigned long ex
 		{
 			LIBCOMMON_DEBUG_PRINT(L"WARNING: Wait timed out or no main window. Forceful termination");
 			bR = Terminate(pid, exitCode);
-
 		}
 	}
 	CloseHandle(hProcess);
