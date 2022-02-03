@@ -65,4 +65,5 @@ public:
 	bool set_value(const WCHAR* pwszValueName, const WCHAR* val);
 
 	bool delete_value(const WCHAR* pwszValueName);
+	bool does_value_exist(const WCHAR* pwszValueName);
 };
