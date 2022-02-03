@@ -381,3 +381,21 @@ bool ProductOptions::delete_value(const WCHAR* pwszValueName)
 	}
 	return bR;
 }
+
+bool ProductOptions::does_value_exist(const WCHAR* pwszValueName)
+{
+	bool bExists = false;
+	HKEY hKey;
+
+	if (RegCreateKeyEx(_hHive, csKeyname, 0, NULL, 0, KEY_QUERY_VALUE | _Wow64Access, NULL, &hKey, NULL) == ERROR_SUCCESS)
+	{
+		DWORD dwSize, dwType;
+		// exists if we can get the value type and size
+		if (RegQueryValueEx(hKey, pwszValueName, NULL, &dwType, NULL, &dwSize) == ERROR_SUCCESS)
+		{
+			bExists = true;
+		}
+		RegCloseKey(hKey);
+	}
+	return bExists;
+}
