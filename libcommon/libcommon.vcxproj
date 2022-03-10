@@ -157,6 +157,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="bitOperations.h" />
+    <ClInclude Include="ControlGroup.h" />
     <ClInclude Include="CSVEmitter.h" />
     <ClInclude Include="CSVReader.h" />
     <ClInclude Include="CSVUtil.h" />
@@ -169,8 +170,8 @@
     <ClInclude Include="ParentProcessChain.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="processCache.h" />
-    <ClInclude Include="processOperations.h" />
-    <ClInclude Include="productOptions.h" />
+    <ClInclude Include="ProcessOperations.h" />
+    <ClInclude Include="ProductOptions.h" />
     <ClInclude Include="scope_guard.hpp" />
     <ClInclude Include="win32-darkmode\win32-darkmode\DarkMode.h" />
     <ClInclude Include="win32-darkmode\win32-darkmode\IatHook.h" />
