@@ -17,6 +17,10 @@ class ParentProcessChain
 	const int MaxDepth = 50;		// set a max depth in case of some errant circular resolution (should never occur, but.. e.g. 4->0 0->4)
 	std::mutex processMaps;
 public:
+	size_t Size()
+	{
+		return mapPIDtoParentPID.size();
+	}
 	void AddPID(const DWORD dwPid, const WCHAR* pwszBasename, unsigned __int64 timeCreateChild, const DWORD dwParentPid, unsigned __int64 timeCreateParentIfKnown = 0 /* optional, but preferred */)
 	{
 		std::lock_guard<std::mutex> lock(processMaps);
