@@ -2,7 +2,6 @@
 # This .gitignore file was automatically created by Microsoft(R) Visual Studio.
 ################################################################################
 
-/libcommon/.vs/libcommon/v16/ipch
 *.opendb
 *.db
 *.suo
@@ -17,8 +16,7 @@
 *.filters
 *.FileListAbsolute.txt
 *.FileListAbsolute.txt
-/libcommon/.vs/libcommon/v16/Browse.VC.db-wal
-/libcommon/.vs/libcommon/v16/Browse.VC.db-shm
+/libcommon/.vs
 /libcommon/x64/Release/libcommon.lib.recipe
 /libcommon/x64/Debug/libcommon.lib.recipe
 /libcommon/Release/libcommon.lib.recipe
