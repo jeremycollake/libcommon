@@ -169,7 +169,7 @@
     <ClInclude Include="ProcessIconImageList.h" />
     <ClInclude Include="ParentProcessChain.h" />
     <ClInclude Include="pch.h" />
-    <ClInclude Include="processCache.h" />
+    <ClInclude Include="ProcessCache.h" />
     <ClInclude Include="ProcessOperations.h" />
     <ClInclude Include="ProductOptions.h" />
     <ClInclude Include="scope_guard.hpp" />

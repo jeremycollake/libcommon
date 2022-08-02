@@ -1,9 +1,10 @@
 #pragma once
-
-// encapsulates associative arrays of various types for storage of process stats
+// ProcessCache
+//  encapsulates associative arrays of various types for storage of process stats
 //
-// TODO: template this if continued use (each data-type will have an instance)
-//  remove specific values and use general get/set_byName methods
+// TODO: 
+//  template this if continued use (each datatype will have an instance)
+//  replace get/set methods referencing specifically named values with generic get/set_byName methods
 
 #include <unordered_map>
 #include <mutex>
@@ -22,8 +23,8 @@ private:
 	std::unordered_map<unsigned int, double> mapCPUUse;
 	std::unordered_map<unsigned int, double> mapAverageCPU;
 	std::unordered_map<unsigned int, unsigned __int64> mapPrivateWorkingSet;
-	std::unordered_map<unsigned int, unordered_map<valueName, unsigned long>> mapNamedULONGs;
-	std::unordered_map<unsigned int, unordered_map<valueName, unsigned __int64>> mapNamedULONGLONGs; ;
+	std::unordered_map<unsigned int, std::unordered_map<valueName, unsigned long>> mapNamedULONGs;
+	std::unordered_map<unsigned int, std::unordered_map<valueName, unsigned __int64>> mapNamedULONGLONGs;
 public:
 	void erase(const unsigned int pid)
 	{
@@ -31,8 +32,19 @@ public:
 		mapCPUUse.erase(pid);
 		mapAverageCPU.erase(pid);
 		mapPrivateWorkingSet.erase(pid);
-		mapNamedULONGs.erase(pid);
+		if (mapNamedULONGLONGs.find(pid) != mapNamedULONGLONGs.end())
+		{
+			mapNamedULONGLONGs[pid].clear();
+		}
 		mapNamedULONGLONGs.erase(pid);
+		if (mapNamedULONGs.find(pid) != mapNamedULONGs.end())
+		{
+			mapNamedULONGs[pid].clear();
+		}
+		mapNamedULONGs.erase(pid);
+		// safety check for map leakage
+		_ASSERT(mapCPUUse.size() < 4096 && mapAverageCPU.size() < 4096 && mapPrivateWorkingSet.size() < 4096
+			&& mapNamedULONGs.size() < 4096 && mapNamedULONGLONGs.size() < 4096);
 	}
 
 	void set_byName(const unsigned int pid, const valueName valName, const unsigned long nVal)
