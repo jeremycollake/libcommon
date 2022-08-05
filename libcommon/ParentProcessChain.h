@@ -12,6 +12,9 @@
 #include <unordered_map>
 #include "DebugOutToggles.h"
 
+// safety, don't use for beta or internal builds to so we can identify any cases
+//#define CIRCULAR_CHAIN_SAFETIES_ENABLED
+
 class ParentProcessChain
 {
 	static const DWORD INVALID_PID_VALUE = 0;	// use 0 (system idle process) instead of -1 to keep simple
@@ -19,14 +22,19 @@ class ParentProcessChain
 	std::map<DWORD, DWORD> mapPIDtoParentPID;
 	std::map<DWORD, std::set<DWORD>> mapPIDtoChildPIDs;
 	std::map<DWORD, unsigned __int64> mapPIDToCreationTime;
-	const int MaxDepth = 50;		// set a max depth in case of some errant circular resolution (should never occur, but.. e.g. 4->0 0->4)
+#ifdef CIRCULAR_CHAIN_SAFETIES_ENABLED	
+	const int MAX_VALID_DEPTH = 50;		// set a max depth in case of some errant circular resolution (should never occur, but.. e.g. 4->0 0->4)
+#endif
+#ifdef DEBUG
+	const int DEBUG_MAP_SIZE_MAX_CHECK = 4096;
+#endif
 	std::mutex processMaps;
 public:
 	size_t Size()
 	{
 		return mapPIDtoParentPID.size();
 	}
-	void AddPID(const DWORD dwPid, const WCHAR* pwszBasename, unsigned __int64 timeCreateChild, DWORD dwParentPid, unsigned __int64 timeCreateParentIfKnown = 0 /* optional, but preferred */)
+	void AddPID(const DWORD dwPid, const WCHAR* pwszBasename, DWORD dwParentPid)
 	{
 		std::lock_guard<std::mutex> lock(processMaps);
 		_ASSERT(mapPIDtoParentPID.find(dwPid) == mapPIDtoParentPID.end());
@@ -34,16 +42,15 @@ public:
 		mapPIDtoBasenames[dwPid] = pwszBasename;
 		mapPIDtoBasenames[dwPid].MakeLower();
 
-		// validate that our supposed parent PID is indeed older than our child PID
-		// if not, then it may be a case of PID reuse, and the parent is no longer valid
-		// see https://devblogs.microsoft.com/oldnewthing/?p=44313		
-		if (0 == timeCreateParentIfKnown)
-		{
-			GetCreationTime(dwParentPid, timeCreateParentIfKnown);
-		}
-		if (timeCreateParentIfKnown
+		// get creation times to validate that it is the actual parent, and not a reused PID
+		// see https://devblogs.microsoft.com/oldnewthing/?p=44313	
+		unsigned long long timeCreateParent = 0;
+		unsigned long long timeCreateChild = 0;
+		RecordCreationTime(dwPid, timeCreateChild);
+		RecordCreationTime(dwParentPid, timeCreateParent);
+		if (timeCreateParent
 			&&
-			timeCreateParentIfKnown > timeCreateChild)
+			timeCreateParent > timeCreateChild)
 		{
 			dwParentPid = 0;
 		}
@@ -54,9 +61,10 @@ public:
 		// then add it to its parent's children set
 		mapPIDtoChildPIDs[dwParentPid].insert(dwPid);
 
-		// check for infinite growth (assumes process count < 4096)
-		_ASSERT(mapPIDtoBasenames.size() < 4096 && mapPIDtoParentPID.size() < 4096
-			&& mapPIDtoChildPIDs.size() < 4096 && mapPIDtoChildPIDs[dwParentPid].size() < 4096);
+		// debug check for infinite map growth (leakage)
+		_ASSERT(mapPIDtoBasenames.size() < DEBUG_MAP_SIZE_MAX_CHECK && mapPIDtoParentPID.size() < DEBUG_MAP_SIZE_MAX_CHECK
+			&& mapPIDtoChildPIDs.size() < DEBUG_MAP_SIZE_MAX_CHECK && mapPIDtoChildPIDs[dwParentPid].size() < DEBUG_MAP_SIZE_MAX_CHECK
+			&& mapPIDToCreationTime.size() < DEBUG_MAP_SIZE_MAX_CHECK);
 	}
 	void RemovePID(const DWORD dwPid)
 	{
@@ -79,7 +87,7 @@ public:
 		// now erase from other maps
 		mapPIDtoParentPID.erase(dwPid);
 		mapPIDtoBasenames.erase(dwPid);
-		mapPIDToCreationTime.erase(dwPid);
+		EraseCreationTime(dwPid);
 	}
 	int GetNestLevelOfPID(const DWORD dwPID)
 	{
@@ -87,6 +95,14 @@ public:
 		for (DWORD dwParentPID = GetParent(dwPID); dwParentPID != INVALID_PID_VALUE; dwParentPID = GetParent(dwParentPID))
 		{
 			nNestLevel++;
+#ifdef CIRCULAR_CHAIN_SAFETIES_ENABLED
+			if (nNestLevel > MAX_VALID_DEPTH)
+			{
+				LIBCOMMON_DEBUG_PRINT(L"Circular chain found, last at %u -> %u", dwPID, dwParentPID);
+				_ASSERT(0);
+				return 0;
+			}
+#endif
 		}
 		return nNestLevel;
 	}
@@ -155,6 +171,12 @@ public:
 		auto it = mapPIDtoParentPID.find(dwPid);
 		if (it != mapPIDtoParentPID.end())
 		{
+			_ASSERT(mapPIDToCreationTime.find(it->second) != mapPIDToCreationTime.end());
+			if (mapPIDToCreationTime[dwPid] <= mapPIDToCreationTime[it->second])
+			{
+				LIBCOMMON_DEBUG_PRINT(L"Invalid parent PID for %u (%u, a reused PID - original parent terminated)", dwPid, it->second);
+				return INVALID_PID_VALUE;
+			}
 			auto parentname = mapPIDtoBasenames.find(it->second);
 			if (parentname != mapPIDtoBasenames.end())
 			{
@@ -170,8 +192,10 @@ public:
 	bool IsChildOf(const DWORD dwPid, const WCHAR* pwszParentBasename)
 	{
 		std::lock_guard<std::mutex> lock(processMaps);
-		auto it = mapPIDtoParentPID.find(dwPid);
+#ifdef CIRCULAR_CHAIN_SAFETIES_ENABLED
 		int nDepth = 0;
+#endif
+		auto it = mapPIDtoParentPID.find(dwPid);
 		while (it != mapPIDtoParentPID.end())
 		{
 			DWORD dwParentPID = it->second;
@@ -185,46 +209,59 @@ public:
 				return true;
 			}
 
+#ifdef CIRCULAR_CHAIN_SAFETIES_ENABLED
 			// we could have a circular dependency if we haven't checked for PID reuse of a parent that no longer exists.
 			// since we do that check in AddPID, this shouldn't happen.
-			nDepth++;
-			//_ASSERT(nDepth <= MaxDepth);
-			if (nDepth > MaxDepth)
+			if (++nDepth > MAX_VALID_DEPTH)
 			{
+				LIBCOMMON_DEBUG_PRINT(L"Circular chain found, last at %u -> %u", dwPID, dwParentPID);
+				_ASSERT(0);
 				return false;
 			}
+#endif
 			DWORD dwLastChildPID = it->first;
 			it = mapPIDtoParentPID.find(dwParentPID);
 			if (it != mapPIDtoParentPID.end() && dwLastChildPID == it->second)
 			{
 				_ASSERT(0);
-				LIBCOMMON_DEBUG_PRINT(L"Circular chain at %d:%s is child of %d:%s, depth now %d", it->first, mapPIDtoBasenames[it->first], it->second, parentname->second, nDepth);
+				LIBCOMMON_DEBUG_PRINT(L"Circular chain at %u:%s is child of %u:%s, depth now %d", it->first, mapPIDtoBasenames[it->first], it->second, parentname->second, nDepth);
 				return false;
 			}
 		}
 		return false;
 	}
-	bool GetCreationTime(DWORD dwPid, unsigned __int64& creationTime)
+	bool RecordCreationTime(DWORD dwPid, unsigned __int64& creationTime)
 	{
+		bool bR = false;
 		auto it = mapPIDToCreationTime.find(dwPid);
 		if (it != mapPIDToCreationTime.end())
 		{
 			creationTime = it->second;
 			return true;
 		}
-		HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, dwPid);
+		HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, dwPid);
 		if (hProcess)
 		{
 			unsigned __int64 exitTime = 0, kernelTime = 0, userTime = 0;
 			GetProcessTimes(hProcess, (FILETIME*)&creationTime, (FILETIME*)&exitTime, (FILETIME*)&kernelTime, (FILETIME*)&userTime);
 			CloseHandle(hProcess);
-			mapPIDToCreationTime[dwPid] = creationTime;
-			return true;
+			bR = true;
 		}
 		else
 		{
-			creationTime = 0;
+			// If we don't have access to get creation time (if ever?), use the current time so we are able to validate parent PIDs (checking for reuse of parent PID).
+			// If a process we don't have query access to were to launch and immediately spawn children, it's possible this could cause an artificial orphaning (only in our app).
+			// However, that case, if it ever were to occur, is less than the risk of a circular parent process chain in the case where we don't have any access to creation times, 
+			//  when we therefore couldn't ever validate the parent PID.
+			LIBCOMMON_DEBUG_PRINT(L"No limited query access to PID %u, can't get creation time!", dwPid);
+			GetSystemTimeAsFileTime(reinterpret_cast<LPFILETIME>(&creationTime));
 		}
-		return false;
+		mapPIDToCreationTime[dwPid] = creationTime;
+		return bR;
+	}
+	void EraseCreationTime(const DWORD dwPid)
+	{
+		_ASSERT(mapPIDToCreationTime.find(dwPid) != mapPIDToCreationTime.end());
+		mapPIDToCreationTime.erase(dwPid);
 	}
 };
