@@ -21,7 +21,7 @@ class ParentProcessChain
 	std::map<DWORD, ATL::CString> mapPIDtoBasenames;
 	std::map<DWORD, DWORD> mapPIDtoParentPID;
 	std::map<DWORD, std::set<DWORD>> mapPIDtoChildPIDs;
-	std::map<DWORD, unsigned __int64> mapPIDToCreationTime;
+	std::map<DWORD, unsigned long long> mapPIDToCreationTime;
 #ifdef CIRCULAR_CHAIN_SAFETIES_ENABLED	
 	const int MAX_VALID_DEPTH = 50;		// set a max depth in case of some errant circular resolution (should never occur, but.. e.g. 4->0 0->4)
 #endif
@@ -219,7 +219,7 @@ public:
 		}
 		return false;
 	}
-	bool RecordCreationTime(DWORD dwPid, unsigned __int64& creationTime)
+	bool RecordCreationTime(DWORD dwPid, unsigned long long& creationTime)
 	{
 		bool bR = false;
 		auto it = mapPIDToCreationTime.find(dwPid);
@@ -231,7 +231,7 @@ public:
 		HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, dwPid);
 		if (hProcess)
 		{
-			unsigned __int64 exitTime = 0, kernelTime = 0, userTime = 0;
+			unsigned long long exitTime = 0, kernelTime = 0, userTime = 0;
 			GetProcessTimes(hProcess, (FILETIME*)&creationTime, (FILETIME*)&exitTime, (FILETIME*)&kernelTime, (FILETIME*)&userTime);
 			CloseHandle(hProcess);
 			bR = true;
