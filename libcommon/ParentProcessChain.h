@@ -189,44 +189,33 @@ public:
 		}
 		return INVALID_PID_VALUE;
 	}
-	bool IsChildOf(const DWORD dwPid, const WCHAR* pwszParentBasename)
+	// check if PID a child of process matching given basename (wildcards accepted)
+	bool IsChildOf(const DWORD dwPid, const WCHAR* pwszParentBasenameMatch)
 	{
 		std::lock_guard<std::mutex> lock(processMaps);
-#ifdef CIRCULAR_CHAIN_SAFETIES_ENABLED
-		int nDepth = 0;
+#ifdef CIRCULAR_CHAIN_SAFETIES_ENABLED		
+		int nNestLevel = 0;
 #endif
-		auto it = mapPIDtoParentPID.find(dwPid);
-		while (it != mapPIDtoParentPID.end())
+		for (DWORD dwParentPID = GetParent(dwPid); dwParentPID != INVALID_PID_VALUE; dwParentPID = GetParent(dwParentPID))
 		{
-			DWORD dwParentPID = it->second;
 			auto parentname = mapPIDtoBasenames.find(dwParentPID);
 			if (parentname != mapPIDtoBasenames.end()
 				&&
 				!parentname->second.IsEmpty()
 				&&
-				wildcmpi(pwszParentBasename, mapPIDtoBasenames[dwParentPID]))
+				wildcmpi(pwszParentBasenameMatch, parentname->second))
 			{
+				LIBCOMMON_DEBUG_PRINT(L"%u is child of %s", dwPid, pwszParentBasenameMatch);
 				return true;
 			}
-
 #ifdef CIRCULAR_CHAIN_SAFETIES_ENABLED
-			// we could have a circular dependency if we haven't checked for PID reuse of a parent that no longer exists.
-			// since we do that check in AddPID, this shouldn't happen.
-			if (++nDepth > MAX_VALID_DEPTH)
+			if (++nNestLevel > MAX_VALID_DEPTH)
 			{
 				LIBCOMMON_DEBUG_PRINT(L"Circular chain found, last at %u -> %u", dwPID, dwParentPID);
 				_ASSERT(0);
 				return false;
 			}
 #endif
-			DWORD dwLastChildPID = it->first;
-			it = mapPIDtoParentPID.find(dwParentPID);
-			if (it != mapPIDtoParentPID.end() && dwLastChildPID == it->second)
-			{
-				_ASSERT(0);
-				LIBCOMMON_DEBUG_PRINT(L"Circular chain at %u:%s is child of %u:%s, depth now %d", it->first, mapPIDtoBasenames[it->first], it->second, parentname->second, nDepth);
-				return false;
-			}
 		}
 		return false;
 	}
