@@ -12,7 +12,7 @@
 #include <unordered_map>
 #include "DebugOutToggles.h"
 
-// safety, don't use for beta or internal builds to so we can identify any cases
+// although we've ensured circular parent chain dependencies will not occur, they would result in an infinite loop, so we have this safety, intended for release builds.
 //#define CIRCULAR_CHAIN_SAFETIES_ENABLED
 
 class ParentProcessChain
@@ -23,7 +23,7 @@ class ParentProcessChain
 	std::map<DWORD, std::set<DWORD>> mapPIDtoChildPIDs;
 	std::map<DWORD, unsigned long long> mapPIDToCreationTime;
 #ifdef CIRCULAR_CHAIN_SAFETIES_ENABLED	
-	const int MAX_VALID_DEPTH = 50;		// set a max depth in case of some errant circular resolution (should never occur, but.. e.g. 4->0 0->4)
+	const int MAX_VALID_DEPTH = 256;		// set a max depth in case of some errant circular resolution (should never occur, but.. e.g. 4->0 0->4)
 #endif
 #ifdef DEBUG
 	const int DEBUG_MAP_SIZE_MAX_CHECK = 4096;
