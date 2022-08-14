@@ -13,7 +13,7 @@
 #include "DebugOutToggles.h"
 
 // although we've ensured circular parent chain dependencies will not occur, they would result in an infinite loop, so we have this safety, intended for release builds.
-//#define CIRCULAR_CHAIN_SAFETIES_ENABLED
+#define CIRCULAR_CHAIN_SAFETIES_ENABLED
 
 class ParentProcessChain
 {
@@ -171,10 +171,13 @@ public:
 		auto it = mapPIDtoParentPID.find(dwPid);
 		if (it != mapPIDtoParentPID.end())
 		{
-			_ASSERT(mapPIDToCreationTime.find(it->second) != mapPIDToCreationTime.end());
-			if (mapPIDToCreationTime[dwPid] <= mapPIDToCreationTime[it->second])
+			// parent can be missing from maps if it terminated
+			// or it can be errantly present as a reused PID
+			if (mapPIDToCreationTime.find(it->second) == mapPIDToCreationTime.end()
+				||
+				mapPIDToCreationTime[dwPid] <= mapPIDToCreationTime[it->second])
 			{
-				LIBCOMMON_DEBUG_PRINT(L"Invalid parent PID for %u (%u, a reused PID - original parent terminated)", dwPid, it->second);
+				LIBCOMMON_DEBUG_PRINT(L"Invalid parent PID for %u, parent %u", dwPid, it->second);
 				return INVALID_PID_VALUE;
 			}
 			auto parentname = mapPIDtoBasenames.find(it->second);
