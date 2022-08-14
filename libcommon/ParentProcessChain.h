@@ -214,7 +214,7 @@ public:
 #ifdef CIRCULAR_CHAIN_SAFETIES_ENABLED
 			if (++nNestLevel > MAX_VALID_DEPTH)
 			{
-				LIBCOMMON_DEBUG_PRINT(L"Circular chain found, last at %u -> %u", dwPID, dwParentPID);
+				LIBCOMMON_DEBUG_PRINT(L"Circular chain found, last at %u -> %u", dwPid, dwParentPID);
 				_ASSERT(0);
 				return false;
 			}
