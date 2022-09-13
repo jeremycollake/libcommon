@@ -4,12 +4,10 @@
 
 #include <map>
 #include <set>
-#include <thread>
 #include <mutex>
 #include <algorithm>
 #include <atlstr.h>
 #include "libcommon.h"
-#include <unordered_map>
 #include "DebugOutToggles.h"
 
 // although we've ensured circular parent chain dependencies will not occur, they would result in an infinite loop, so we have this safety, intended for release builds.
@@ -18,6 +16,7 @@
 class ParentProcessChain
 {
 	static const DWORD INVALID_PID_VALUE = 0;	// use 0 (system idle process) instead of -1 to keep simple
+	std::mutex processMaps;
 	std::map<DWORD, ATL::CString> mapPIDtoBasenames;
 	std::map<DWORD, DWORD> mapPIDtoParentPID;
 	std::map<DWORD, std::set<DWORD>> mapPIDtoChildPIDs;
@@ -28,7 +27,7 @@ class ParentProcessChain
 #ifdef DEBUG
 	const int DEBUG_MAP_SIZE_MAX_CHECK = 4096;
 #endif
-	std::mutex processMaps;
+
 public:
 	size_t Size()
 	{
