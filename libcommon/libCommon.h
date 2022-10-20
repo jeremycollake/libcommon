@@ -48,4 +48,4 @@ bool IsStringMatchInVector(const WCHAR* string, const std::vector<ATL::CString>&
 size_t wstringFindNoCase(const std::wstring& strHaystack, const std::wstring& strNeedle);
 
 // if below min, set to min. If above max, set to max.
-#define LIMIT_RANGE(V, MIN, MAX) ((V) < (MIN) ? (MIN) : V > (MAX) ? (MAX) : (V))
+#define LIMIT_RANGE(V, MIN, MAX) ((V) < (MIN) ? (MIN) : (V) > (MAX) ? (MAX) : (V))
