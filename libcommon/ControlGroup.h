@@ -25,11 +25,30 @@ public:
 	}
 	bool SetVisible(const bool bVisible)
 	{
-		for (auto& i : m_vControlIds)
+		for (const auto i : m_vControlIds)
 		{
 			_ASSERT(GetDlgItem(m_hWndDialog, i));
 			ShowWindow(GetDlgItem(m_hWndDialog, i), bVisible ? SW_NORMAL : SW_HIDE);
 		}
 		return AreVisible();
+	}
+	bool AreEnabled()
+	{
+		if (!m_vControlIds.size())
+		{
+			return false;
+		}
+		_ASSERT(GetDlgItem(m_hWndDialog, m_vControlIds[0]));
+		// just test the first control
+		return IsWindowEnabled(GetDlgItem(m_hWndDialog, m_vControlIds[0]));
+	}
+	bool SetEnabled(const bool bEnabled)
+	{
+		for (const auto i : m_vControlIds)
+		{
+			_ASSERT(GetDlgItem(m_hWndDialog, i));
+			EnableWindow(GetDlgItem(m_hWndDialog, i), bEnabled ? TRUE : FALSE);
+		}
+		return AreEnabled();
 	}
 };
