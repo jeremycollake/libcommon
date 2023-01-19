@@ -4,6 +4,7 @@
 #include "pch.h"
 #include "framework.h"
 #include "libCommon.h"
+#include <shlobj.h>
 #include <sddl.h>
 #include <algorithm>
 #include <string>
@@ -55,7 +56,7 @@ bool ListView_InitColumns(const HWND hWndListview, const HMODULE hResourceModule
 				const static int FAILSAFE_LV_COL_WIDTH = 100;
 				lvCol.cx = FAILSAFE_LV_COL_WIDTH;
 				bSuccess = false;
-			}			
+			}
 		}
 		if (ListView_InsertColumn(hWndListview, nIndex, &lvCol) == -1)
 		{
@@ -219,7 +220,7 @@ void AppendCharacterIfMissing(ATL::CString& csStr, const WCHAR wChar)
 	}
 }
 
-bool wildcmpEx(const TCHAR* wild, const TCHAR* str) 
+bool wildcmpEx(const TCHAR* wild, const TCHAR* str)
 {
 	int slen = (int)_tcslen(str);
 	int wlen = (int)_tcslen(wild);
@@ -299,7 +300,7 @@ bool wildcmpEx(const TCHAR* wild, const TCHAR* str)
 }
 
 
-bool wildicmpEx(const TCHAR* wild, const TCHAR* str) 
+bool wildicmpEx(const TCHAR* wild, const TCHAR* str)
 {
 	_ASSERT(str);
 	int slen = (int)_tcslen(str);
@@ -556,4 +557,40 @@ size_t wstringFindNoCase(const std::wstring& strHaystack, const std::wstring& st
 		return std::wstring::npos;
 	}
 	return strHaystack.end() - it;
+}
+
+std::wstring GetAppDataPath()
+{
+	WCHAR* pwszPath = nullptr;
+	if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, NULL, &pwszPath)))
+	{
+		std::wstring pathAppData = pwszPath;
+		CoTaskMemFree(pwszPath);
+		return pathAppData;
+	}
+	return std::wstring();
+}
+
+std::wstring convert_to_wstring(const std::string& str)
+{
+	std::wstring wstrTo;
+	int ncch = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), str.length(), NULL, 0);
+	if (ncch)
+	{
+		wstrTo.resize(ncch);
+		MultiByteToWideChar(CP_UTF8, 0, str.c_str(), str.length(), &wstrTo[0], ncch);
+	}
+	return wstrTo;
+}
+
+std::string convert_from_wstring(const std::wstring& wstr)
+{
+	std::string strTo;
+	int ncch = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), wstr.length(), NULL, 0, NULL, NULL);
+	if (ncch > 0)
+	{
+		strTo.resize(ncch);
+		WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), wstr.length(), &strTo[0], ncch, NULL, NULL);
+	}
+	return strTo;
 }

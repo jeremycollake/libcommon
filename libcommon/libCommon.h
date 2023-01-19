@@ -4,6 +4,8 @@
 #include <vector>
 #include <string>
 
+std::wstring GetAppDataPath();
+
 // ListView_InitColumns - Insert listview columns with calculated width of final column
 // accepts vector of paired string IDs and widths for columns
 //  supports -1 for column size, in which case it will be remaining width of listview
@@ -46,6 +48,9 @@ size_t ExplodeString(const ATL::CString& str, const WCHAR delim, std::vector<ATL
 bool IsStringMatchInVector(const WCHAR* string, const std::vector<ATL::CString>& vecPatterns);
 
 size_t wstringFindNoCase(const std::wstring& strHaystack, const std::wstring& strNeedle);
+
+std::wstring convert_to_wstring(const std::string& str);
+std::string convert_from_wstring(const std::wstring& wstr);
 
 // if below min, set to min. If above max, set to max.
 #define LIMIT_RANGE(V, MIN, MAX) ((V) < (MIN) ? (MIN) : (V) > (MAX) ? (MAX) : (V))
