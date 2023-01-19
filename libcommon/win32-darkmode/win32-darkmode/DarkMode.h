@@ -4,6 +4,7 @@
 //  https://github.com/ysc3839/win32-darkmode/pull/17
 //  https://github.com/notepad-plus-plus/notepad-plus-plus/pull/9587
 
+#include <uxtheme.h>
 #include "IatHook.h"
 #include "UAHMenuBar.h"
 
