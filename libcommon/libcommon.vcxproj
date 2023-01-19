@@ -173,6 +173,7 @@
     <ClInclude Include="ProcessCache.h" />
     <ClInclude Include="ProcessOperations.h" />
     <ClInclude Include="ProductOptions.h" />
+    <ClInclude Include="ResourceHelpers.h" />
     <ClInclude Include="scope_guard.hpp" />
     <ClInclude Include="win32-darkmode\win32-darkmode\DarkMode.h" />
     <ClInclude Include="win32-darkmode\win32-darkmode\IatHook.h" />
@@ -194,6 +195,7 @@
     </ClCompile>
     <ClCompile Include="ProcessOperations.cpp" />
     <ClCompile Include="ProductOptions.cpp" />
+    <ClCompile Include="ResourceHelpers.cpp" />
     <ClCompile Include="win32-darkmode\win32-darkmode\darkmode.cpp">
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">../../pch.h</PrecompiledHeaderFile>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">../../pch.h</PrecompiledHeaderFile>
