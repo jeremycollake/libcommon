@@ -4,6 +4,7 @@
 #include "pch.h"
 #include "framework.h"
 #include "libCommon.h"
+#include <shellapi.h>
 #include <shlobj.h>
 #include <sddl.h>
 #include <algorithm>
@@ -593,4 +594,25 @@ std::string convert_from_wstring(const std::wstring& wstr)
 		WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), wstr.length(), &strTo[0], ncch, NULL, NULL);
 	}
 	return strTo;
+}
+
+HANDLE LaunchProcessWithElevation(const WCHAR* pwszFile, const WCHAR* pwszCommandLine, const WCHAR* pwszWorkingDir)
+{
+	SHELLEXECUTEINFO ShellExecInfo = {};
+	memset(&ShellExecInfo, 0, sizeof(ShellExecInfo));	// redundant
+	ShellExecInfo.cbSize = sizeof(SHELLEXECUTEINFO);
+	ShellExecInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
+	ShellExecInfo.hwnd = NULL;
+	ShellExecInfo.lpVerb = L"runas";
+	ShellExecInfo.lpFile = pwszFile;
+	ShellExecInfo.lpParameters = pwszCommandLine;
+	ShellExecInfo.lpDirectory = pwszWorkingDir;
+	ShellExecInfo.nShow = SW_NORMAL;
+
+	if (!ShellExecuteEx(&ShellExecInfo))
+	{
+		LIBCOMMON_DEBUG_PRINT(L"Launch of %s failed", pwszFile);
+		return NULL;
+	}
+	return ShellExecInfo.hProcess;
 }
