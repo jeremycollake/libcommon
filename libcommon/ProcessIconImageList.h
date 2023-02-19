@@ -27,15 +27,18 @@ class ProcessIconImageList
 		}
 		ICON_DEBUG_PRINT(L"Extracting icon for %s", pwszFilename);
 		WORD wIndex = 0;
-		return ExtractAssociatedIcon(GetModuleHandle(NULL), const_cast<LPWSTR>(pwszFilename), &wIndex);
+		// we must make a copy of the filename because ExtractAssociatedIcon can modify it
+		WCHAR wszBuffer[MAX_PATH] = { 0 };
+		wcscpy_s(wszBuffer, MAX_PATH, pwszFilename);
+		return ExtractAssociatedIcon(GetModuleHandle(NULL), wszBuffer, &wIndex);
 	}
 public:
 	ProcessIconImageList(const HICON hSuppliedFailsafeIcon = NULL)
 	{
 		// create imagelist and init with failsafe icon, for when an app icon is not avail
 		hImageList = ImageList_Create(16, 16, ILC_COLOR32, 1, _Imagelist_MaxSize);
-		_ASSERT(hImageList);		
-		
+		_ASSERT(hImageList);
+
 		// if failsafe icon was not supplied, load one from disk - svchost.exe
 		HICON hSelectedFailsafeIcon = hSuppliedFailsafeIcon;
 		if (NULL == hSelectedFailsafeIcon)
@@ -144,12 +147,12 @@ public:
 
 		int nImageIndex = mapFilenameToImgIdx[csFile];
 		if (--mapImgIdxToRefCount[nImageIndex] == 0)
-		{			
-			ICON_DEBUG_PRINT(L"Reference count for %d %s now 0. Removing!", nImageIndex, csFile);			
+		{
+			ICON_DEBUG_PRINT(L"Reference count for %d %s now 0. Removing!", nImageIndex, csFile);
 			_ASSERT(nImageIndex != nFailsafeIconIndex);
-			
+
 			ImageList_Remove(hImageList, nImageIndex);
-			
+
 			mapFilenameToImgIdx.erase(csFile);
 
 			// removing an icon from the imagelist changes the higher indices, so adjust prior refs
