@@ -7,6 +7,7 @@
 #include <map>
 #include <set>
 #include <mutex>
+#include "WindowsConsts.h"
 #include "DebugOutToggles.h"
 
 // manages a process icon imagelist for a listview
@@ -27,10 +28,13 @@ class ProcessIconImageList
 		}
 		ICON_DEBUG_PRINT(L"Extracting icon for %s", pwszFilename);
 		WORD wIndex = 0;
-		// we must make a copy of the filename because ExtractAssociatedIcon can modify it
-		WCHAR wszBuffer[MAX_PATH] = { 0 };
-		wcscpy_s(wszBuffer, MAX_PATH, pwszFilename);
-		return ExtractAssociatedIcon(GetModuleHandle(NULL), wszBuffer, &wIndex);
+		// make a copy of pwszFilename because the pwszIconPath param of ExtractAssociatedIcon is non-const.
+		//  On return, pwszIconPath is filled with the pathname to the file containing the selected icon
+		//  which may be different than the pathname passed in. Therefore, minimum size should be MAX_PATH.
+
+		WCHAR wszBuffer[LibcommonWindowsConsts::EFFECTIVE_WINDOWS_MAX_PATH] = { 0 };
+		wcscpy_s(wszBuffer, _countof(wszBuffer), pwszFilename);
+		return ExtractAssociatedIcon(GetModuleHandle(nullptr), wszBuffer, &wIndex);
 	}
 public:
 	ProcessIconImageList(const HICON hSuppliedFailsafeIcon = NULL)
