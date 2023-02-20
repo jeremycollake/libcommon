@@ -31,7 +31,6 @@ class ProcessIconImageList
 		// make a copy of pwszFilename because the pwszIconPath param of ExtractAssociatedIcon is non-const.
 		//  On return, pwszIconPath is filled with the pathname to the file containing the selected icon
 		//  which may be different than the pathname passed in. Therefore, minimum size should be MAX_PATH.
-
 		WCHAR wszBuffer[LibcommonWindowsConsts::EFFECTIVE_WINDOWS_MAX_PATH] = { 0 };
 		wcscpy_s(wszBuffer, _countof(wszBuffer), pwszFilename);
 		return ExtractAssociatedIcon(GetModuleHandle(nullptr), wszBuffer, &wIndex);
