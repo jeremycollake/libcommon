@@ -7,6 +7,7 @@
 #include <map>
 #include <set>
 #include <mutex>
+#include "WindowsConsts.h"
 #include "DebugOutToggles.h"
 
 // manages a process icon imagelist for a listview
@@ -27,15 +28,27 @@ class ProcessIconImageList
 		}
 		ICON_DEBUG_PRINT(L"Extracting icon for %s", pwszFilename);
 		WORD wIndex = 0;
-		return ExtractAssociatedIcon(GetModuleHandle(NULL), const_cast<LPWSTR>(pwszFilename), &wIndex);
+
+		// make a copy of pwszFilename because the pwszIconPath param of ExtractAssociatedIcon is non-const.
+		//  On return, pwszIconPath is filled with the pathname to the file containing the selected icon
+		//  which may be different than the pathname passed in. Therefore, minimum size should be MAX_PATH.				
+
+		// abort if pwszFilename exceeds our max size
+		if (wcslen(pwszFilename) >= LibcommonWindowsConsts::EFFECTIVE_WINDOWS_MAX_PATH)
+		{
+			return NULL;
+		}
+		WCHAR wszBuffer[LibcommonWindowsConsts::EFFECTIVE_WINDOWS_MAX_PATH] = { 0 };
+		wcscpy_s(wszBuffer, _countof(wszBuffer), pwszFilename);
+		return ExtractAssociatedIcon(GetModuleHandle(nullptr), wszBuffer, &wIndex);
 	}
 public:
 	ProcessIconImageList(const HICON hSuppliedFailsafeIcon = NULL)
 	{
 		// create imagelist and init with failsafe icon, for when an app icon is not avail
 		hImageList = ImageList_Create(16, 16, ILC_COLOR32, 1, _Imagelist_MaxSize);
-		_ASSERT(hImageList);		
-		
+		_ASSERT(hImageList);
+
 		// if failsafe icon was not supplied, load one from disk - svchost.exe
 		HICON hSelectedFailsafeIcon = hSuppliedFailsafeIcon;
 		if (NULL == hSelectedFailsafeIcon)
@@ -144,12 +157,12 @@ public:
 
 		int nImageIndex = mapFilenameToImgIdx[csFile];
 		if (--mapImgIdxToRefCount[nImageIndex] == 0)
-		{			
-			ICON_DEBUG_PRINT(L"Reference count for %d %s now 0. Removing!", nImageIndex, csFile);			
+		{
+			ICON_DEBUG_PRINT(L"Reference count for %d %s now 0. Removing!", nImageIndex, csFile);
 			_ASSERT(nImageIndex != nFailsafeIconIndex);
-			
+
 			ImageList_Remove(hImageList, nImageIndex);
-			
+
 			mapFilenameToImgIdx.erase(csFile);
 
 			// removing an icon from the imagelist changes the higher indices, so adjust prior refs
