@@ -75,4 +75,7 @@ public:
 	unsigned long long LimitAffinityToInstalledCPUCores(unsigned long long bitmask);
 
 	HWND GetLikelyPrimaryWindow(const unsigned long pid);
+
+	bool SetEfficiencyMode(const unsigned long pid, const int nEfficiencyMode);
+	bool GetEfficiencyMode(const unsigned long pid, __out int& nEfficiencyMode);
 };

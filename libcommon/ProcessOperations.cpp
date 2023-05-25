@@ -491,3 +491,47 @@ bool ProcessOperations::CloseApp(const unsigned long pid, const unsigned long ex
 
 	return bR;
 }
+
+bool ProcessOperations::SetEfficiencyMode(const unsigned long pid, const int nEfficiencyMode)
+{
+	HANDLE hProcess = OpenProcess(PROCESS_SET_INFORMATION, FALSE, pid);
+	if (NULL == hProcess)
+	{
+		return false;
+	}
+	PROCESS_POWER_THROTTLING_STATE state = { 0 };
+	state.Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
+	state.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
+	state.StateMask = nEfficiencyMode ? PROCESS_POWER_THROTTLING_EXECUTION_SPEED : 0;
+	if (!SetProcessInformation(hProcess, ProcessPowerThrottling, &state, sizeof(state)))
+	{
+		LIBCOMMON_DEBUG_PRINT(L"Failed to set efficiency mode for %u", pid);
+		CloseHandle(hProcess);
+		return false;
+	}
+	CloseHandle(hProcess);
+	return true;
+}
+
+bool ProcessOperations::GetEfficiencyMode(const unsigned long pid, __out int& nEfficiencyMode)
+{
+	nEfficiencyMode = -1;
+	HANDLE hProcess = OpenQueryHandle(pid);
+	if (NULL == hProcess)
+	{
+		return false;
+	}
+	PROCESS_POWER_THROTTLING_STATE state = { 0 };
+	state.Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
+	state.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
+	state.StateMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
+	if (!GetProcessInformation(hProcess, ProcessPowerThrottling, &state, sizeof(state)))
+	{
+		LIBCOMMON_DEBUG_PRINT(L"Failed to get efficiency mode for %u", pid);
+		CloseHandle(hProcess);
+		return false;
+	}
+	CloseHandle(hProcess);
+	nEfficiencyMode = (state.StateMask & PROCESS_POWER_THROTTLING_EXECUTION_SPEED) ? 1 : 0;
+	return true;
+}
