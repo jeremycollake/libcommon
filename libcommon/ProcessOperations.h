@@ -78,6 +78,12 @@ public:
 
 	HWND GetLikelyPrimaryWindow(const unsigned long pid);
 
-	bool SetEfficiencyMode(const unsigned long pid, const int nEfficiencyMode);
-	bool GetEfficiencyMode(const unsigned long pid, __out int& nEfficiencyMode);
+	enum EfficiencyMode
+	{
+		EM_UNSET = -1,
+		EM_OFF = 0,
+		EM_ON = 1
+	};
+	bool SetEfficiencyMode(const unsigned long pid, const EfficiencyMode efficiencyMode);
+	bool GetEfficiencyMode(const unsigned long pid, __out EfficiencyMode& efficiencyMode);
 };
