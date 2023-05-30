@@ -1,6 +1,29 @@
 #include "pch.h"
 #include "ProcessOperations.h"
 
+using fnGetProcessInformation = BOOL(WINAPI*)(HANDLE, PROCESS_INFORMATION_CLASS, LPVOID, DWORD);
+using fnSetProcessInformation = BOOL(WINAPI*)(HANDLE, PROCESS_INFORMATION_CLASS, LPVOID, DWORD);
+
+// globals so we don't have to import APIs every instantiation
+bool g_bImportAPIAttempted = false;
+fnGetProcessInformation	_GetProcessInformation = nullptr;	// Win8+
+fnSetProcessInformation _SetProcessInformation = nullptr;	// Win8+
+
+void ProcessOperations::ImportAPIs()
+{
+	if (!g_bImportAPIAttempted)
+	{
+		g_bImportAPIAttempted = true;
+		HMODULE hNtDll = GetModuleHandle(L"kernel32.dll");
+		if (hNtDll)
+		{
+			_GetProcessInformation = (fnGetProcessInformation)GetProcAddress(hNtDll, "GetProcessInformation");
+			_SetProcessInformation = (fnSetProcessInformation)GetProcAddress(hNtDll, "SetProcessInformation");
+		}
+	}
+	_ASSERT(_GetProcessInformation && _SetProcessInformation);
+}
+
 HANDLE ProcessOperations::OpenQueryHandle(const unsigned long pid)
 {
 	HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, pid);
@@ -494,6 +517,10 @@ bool ProcessOperations::CloseApp(const unsigned long pid, const unsigned long ex
 
 bool ProcessOperations::SetEfficiencyMode(const unsigned long pid, const int nEfficiencyMode)
 {
+	if (!_SetProcessInformation)
+	{
+		return false;
+	}
 	HANDLE hProcess = OpenProcess(PROCESS_SET_INFORMATION, FALSE, pid);
 	if (NULL == hProcess)
 	{
@@ -503,7 +530,7 @@ bool ProcessOperations::SetEfficiencyMode(const unsigned long pid, const int nEf
 	state.Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
 	state.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
 	state.StateMask = nEfficiencyMode ? PROCESS_POWER_THROTTLING_EXECUTION_SPEED : 0;
-	if (!SetProcessInformation(hProcess, ProcessPowerThrottling, &state, sizeof(state)))
+	if (!_SetProcessInformation(hProcess, ProcessPowerThrottling, &state, sizeof(state)))
 	{
 		LIBCOMMON_DEBUG_PRINT(L"Failed to set efficiency mode for %u", pid);
 		CloseHandle(hProcess);
@@ -516,6 +543,10 @@ bool ProcessOperations::SetEfficiencyMode(const unsigned long pid, const int nEf
 bool ProcessOperations::GetEfficiencyMode(const unsigned long pid, __out int& nEfficiencyMode)
 {
 	nEfficiencyMode = -1;
+	if (!_GetProcessInformation)
+	{
+		return false;
+	}
 	HANDLE hProcess = OpenQueryHandle(pid);
 	if (NULL == hProcess)
 	{
@@ -525,7 +556,7 @@ bool ProcessOperations::GetEfficiencyMode(const unsigned long pid, __out int& nE
 	state.Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
 	state.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
 	state.StateMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
-	if (!GetProcessInformation(hProcess, ProcessPowerThrottling, &state, sizeof(state)))
+	if (!_GetProcessInformation(hProcess, ProcessPowerThrottling, &state, sizeof(state)))
 	{
 		LIBCOMMON_DEBUG_PRINT(L"Failed to get efficiency mode for %u", pid);
 		CloseHandle(hProcess);

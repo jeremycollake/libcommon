@@ -42,10 +42,12 @@ public:
 class ProcessOperations
 {
 	SYSTEM_INFO sysInfo;
+	void ImportAPIs();
 public:
 	ProcessOperations()
 	{
 		GetSystemInfo(&sysInfo);
+		ImportAPIs();
 	}
 	HANDLE OpenQueryHandle(const unsigned long pid);
 	bool GetAffinityMask(const unsigned long pid, unsigned long long& bitMask);
