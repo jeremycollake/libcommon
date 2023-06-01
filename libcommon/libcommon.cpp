@@ -186,6 +186,11 @@ bool IsWindows11OrGreater()
 	return GetWindows10Build() >= WIN11_MIN_BUILD_NUMBER ? true : false;
 }
 
+bool IsEfficiencyModeSupported()
+{
+	return IsWindows11OrGreater();
+}
+
 void RemoveTrailingBackslash(ATL::CString& csStr)
 {
 	int nLen = csStr.GetLength();

@@ -34,6 +34,7 @@ bool BuildWindows10OrGreaterVersionString(ATL::CString& csVersionString);
 DWORD GetWindows10Build();
 // temporary, pending addition to WinSDK
 bool IsWindows11OrGreater();
+bool IsEfficiencyModeSupported();
 
 bool wildcmpEx(const TCHAR* wild, const TCHAR* str);
 bool wildicmpEx(const TCHAR* wild, const TCHAR* str);
