@@ -42,10 +42,12 @@ public:
 class ProcessOperations
 {
 	SYSTEM_INFO sysInfo;
+	void ImportAPIs();
 public:
 	ProcessOperations()
 	{
 		GetSystemInfo(&sysInfo);
+		ImportAPIs();
 	}
 	HANDLE OpenQueryHandle(const unsigned long pid);
 	bool GetAffinityMask(const unsigned long pid, unsigned long long& bitMask);
@@ -75,4 +77,13 @@ public:
 	unsigned long long LimitAffinityToInstalledCPUCores(unsigned long long bitmask);
 
 	HWND GetLikelyPrimaryWindow(const unsigned long pid);
+
+	enum EfficiencyMode
+	{
+		EM_UNSET = -1,
+		EM_OFF = 0,
+		EM_ON = 1
+	};
+	bool SetEfficiencyMode(const unsigned long pid, const EfficiencyMode efficiencyMode);
+	bool GetEfficiencyMode(const unsigned long pid, __out EfficiencyMode& efficiencyMode);
 };
