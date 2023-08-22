@@ -373,7 +373,8 @@ bool ProductOptions::does_value_exist(const WCHAR* pwszValueName)
 	bool bExists = false;
 	HKEY hKey;
 
-	if (RegCreateKeyEx(_hHive, csKeyname, 0, NULL, 0, KEY_QUERY_VALUE | _Wow64Access, NULL, &hKey, NULL) == ERROR_SUCCESS)
+	// use RegOpenKeyEx since RegCreateKeyEx will create all keys in the path as it traverses, regardless of the query only SAM
+	if (RegOpenKeyEx(_hHive, csKeyname, 0, KEY_QUERY_VALUE | _Wow64Access, &hKey) == ERROR_SUCCESS)
 	{
 		DWORD dwSize, dwType;
 		// exists if we can get the value type and size
