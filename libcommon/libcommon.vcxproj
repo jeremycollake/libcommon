@@ -166,6 +166,7 @@
     <ClInclude Include="framework.h" />
     <ClInclude Include="InterprocessCommunicator.h" />
     <ClInclude Include="libCommon.h" />
+    <ClInclude Include="LogOut.h" />
     <ClInclude Include="MenuHelpers.h" />
     <ClInclude Include="ProcessIconImageList.h" />
     <ClInclude Include="ParentProcessChain.h" />
@@ -187,6 +188,7 @@
     <ClCompile Include="bitOperations.cpp" />
     <ClCompile Include="DbgPrintf.cpp" />
     <ClCompile Include="libcommon.cpp" />
+    <ClCompile Include="LogOut.cpp" />
     <ClCompile Include="MenuHelpers.cpp" />
     <ClCompile Include="ParentProcessChain.cpp" />
     <ClCompile Include="pch.cpp">
