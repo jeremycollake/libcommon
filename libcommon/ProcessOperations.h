@@ -86,4 +86,6 @@ public:
 	};
 	bool SetEfficiencyMode(const unsigned long pid, const EfficiencyMode efficiencyMode);
 	bool GetEfficiencyMode(const unsigned long pid, __out EfficiencyMode& efficiencyMode);
+
+	bool SetIgnoreTimerResolution(const unsigned long pid, const bool bEnabled);
 };

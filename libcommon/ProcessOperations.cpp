@@ -566,3 +566,28 @@ bool ProcessOperations::GetEfficiencyMode(const unsigned long pid, __out Efficie
 	efficiencyMode = (state.StateMask & PROCESS_POWER_THROTTLING_EXECUTION_SPEED) ? EM_ON : EM_OFF;
 	return true;
 }
+
+bool ProcessOperations::SetIgnoreTimerResolution(const unsigned long pid, const bool bEnabled)
+{
+	if (!_SetProcessInformation)
+	{
+		return false;
+	}
+	HANDLE hProcess = OpenProcess(PROCESS_SET_INFORMATION, FALSE, pid);
+	if (NULL == hProcess)
+	{
+		return false;
+	}
+	PROCESS_POWER_THROTTLING_STATE PowerThrottling = { 0 };
+	PowerThrottling.Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
+	PowerThrottling.ControlMask = PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION;
+	PowerThrottling.StateMask = bEnabled ? PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION : 0;
+	if (!_SetProcessInformation(hProcess, ProcessPowerThrottling, &PowerThrottling, sizeof(PowerThrottling)))
+	{
+		LIBCOMMON_DEBUG_PRINT(L"Failed to set ignore timer resolutino mode for %u", pid);
+		CloseHandle(hProcess);
+		return false;
+	}
+	CloseHandle(hProcess);
+	return true;
+}
