@@ -54,5 +54,7 @@ size_t wstringFindNoCase(const std::wstring& strHaystack, const std::wstring& st
 std::wstring convert_to_wstring(const std::string& str);
 std::string convert_from_wstring(const std::wstring& wstr);
 
+#define SetWindowVisible(hWnd, bVisible) ShowWindow(hWnd, bVisible ? SW_NORMAL : SW_HIDE)
+
 // if below min, set to min. If above max, set to max.
 #define LIMIT_RANGE(V, MIN, MAX) ((V) < (MIN) ? (MIN) : (V) > (MAX) ? (MAX) : (V))
