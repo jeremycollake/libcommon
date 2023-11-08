@@ -579,24 +579,36 @@ std::wstring GetAppDataPath()
 
 std::wstring convert_to_wstring(const std::string& str)
 {
+	_ASSERT(str.length() == static_cast<int>(str.length()));
+	// if the string size_t exceeds int max, then we can't fully convert it, so return empty string
+	if (str.length() != static_cast<int>(str.length()))
+	{
+		return std::wstring();
+	}
 	std::wstring wstrTo;
-	int ncch = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), str.length(), NULL, 0);
+	int ncch = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), static_cast<int>(str.length()), NULL, 0);
 	if (ncch)
 	{
 		wstrTo.resize(ncch);
-		MultiByteToWideChar(CP_UTF8, 0, str.c_str(), str.length(), &wstrTo[0], ncch);
+		MultiByteToWideChar(CP_UTF8, 0, str.c_str(), static_cast<int>(str.length()), &wstrTo[0], ncch);
 	}
 	return wstrTo;
 }
 
 std::string convert_from_wstring(const std::wstring& wstr)
 {
+	_ASSERT(wstr.length() == static_cast<int>(wstr.length()));
+	// if the string size_t exceeds int max, then we can't fully convert it, so return empty string
+	if (wstr.length() != static_cast<int>(wstr.length()))
+	{
+		return std::string();
+	}
 	std::string strTo;
-	int ncch = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), wstr.length(), NULL, 0, NULL, NULL);
+	int ncch = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), static_cast<int>(wstr.length()), NULL, 0, NULL, NULL);
 	if (ncch > 0)
 	{
 		strTo.resize(ncch);
-		WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), wstr.length(), &strTo[0], ncch, NULL, NULL);
+		WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), static_cast<int>(wstr.length()), &strTo[0], ncch, NULL, NULL);
 	}
 	return strTo;
 }
