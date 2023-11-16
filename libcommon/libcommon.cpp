@@ -613,6 +613,18 @@ std::string convert_from_wstring(const std::wstring& wstr)
 	return strTo;
 }
 
+bool GetBitmapSize(const HBITMAP hBitmap, __out SIZE& sizeOut)
+{
+	BITMAP bm = {};
+	if (GetObject(hBitmap, sizeof(bm), &bm) == 0)
+	{
+		return false;
+	}
+	sizeOut.cx = bm.bmWidth;
+	sizeOut.cy = bm.bmHeight;
+	return true;
+}
+
 HANDLE LaunchProcessWithElevation(const WCHAR* pwszFile, const WCHAR* pwszCommandLine, const WCHAR* pwszWorkingDir)
 {
 	SHELLEXECUTEINFO ShellExecInfo = {};

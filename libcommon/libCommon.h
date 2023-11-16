@@ -56,5 +56,7 @@ std::string convert_from_wstring(const std::wstring& wstr);
 
 #define SetWindowVisible(hWnd, bVisible) ShowWindow(hWnd, bVisible ? SW_NORMAL : SW_HIDE)
 
+bool GetBitmapSize(const HBITMAP hBitmap, __out SIZE& sizeOut);
+
 // if below min, set to min. If above max, set to max.
 #define LIMIT_RANGE(V, MIN, MAX) ((V) < (MIN) ? (MIN) : (V) > (MAX) ? (MAX) : (V))
