@@ -16,8 +16,8 @@
 *.filters
 *.FileListAbsolute.txt
 *.FileListAbsolute.txt
-.vs
-x64/Release/libcommon.lib.recipe
-x64/Debug/libcommon.lib.recipe
-Release/libcommon.lib.recipe
-x64
+/libcommon/.vs
+/libcommon/x64/Release/libcommon.lib.recipe
+/libcommon/x64/Debug/libcommon.lib.recipe
+/libcommon/Release/libcommon.lib.recipe
+/libcommon/x64
