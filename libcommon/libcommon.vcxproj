@@ -158,7 +158,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="bitOperations.h" />
+    <ClInclude Include="BitOperations.h" />
     <ClInclude Include="ControlGroup.h" />
     <ClInclude Include="CSVEmitter.h" />
     <ClInclude Include="CSVReader.h" />
@@ -178,6 +178,7 @@
     <ClInclude Include="ProductOptions.h" />
     <ClInclude Include="ResourceHelpers.h" />
     <ClInclude Include="scope_guard.hpp" />
+    <ClInclude Include="SystemReservedCPUSets.h" />
     <ClInclude Include="win32-darkmode\win32-darkmode\DarkMode.h" />
     <ClInclude Include="win32-darkmode\win32-darkmode\IatHook.h" />
     <ClInclude Include="win32-darkmode\win32-darkmode\ListViewUtil.h" />
@@ -187,7 +188,6 @@
     <ClInclude Include="WindowsState.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="bitOperations.cpp" />
     <ClCompile Include="DbgPrintf.cpp" />
     <ClCompile Include="libcommon.cpp" />
     <ClCompile Include="LogOut.cpp" />
