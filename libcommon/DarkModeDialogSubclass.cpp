@@ -1,3 +1,5 @@
+// NOTE: Perhaps belongs in win32-darkmdoe project, though we are now trying to isolate our changes and additions that project.
+
 #include "pch.h"
 #include "DarkModeDialogSubclass.h"
 #include "win32-darkmode/win32-darkmode/DarkMode.h"
