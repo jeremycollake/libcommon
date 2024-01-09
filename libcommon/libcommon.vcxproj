@@ -163,6 +163,7 @@
     <ClInclude Include="CSVEmitter.h" />
     <ClInclude Include="CSVReader.h" />
     <ClInclude Include="CSVUtil.h" />
+    <ClInclude Include="DarkModeDialogSubclass.h" />
     <ClInclude Include="DbgPrintf.h" />
     <ClInclude Include="DebugOutToggles.h" />
     <ClInclude Include="framework.h" />
@@ -188,6 +189,7 @@
     <ClInclude Include="WindowsState.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="DarkModeDialogSubclass.cpp" />
     <ClCompile Include="DbgPrintf.cpp" />
     <ClCompile Include="libcommon.cpp" />
     <ClCompile Include="LogOut.cpp" />
