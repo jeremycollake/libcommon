@@ -14,11 +14,11 @@ void ProcessOperations::ImportAPIs()
 	if (!g_bImportAPIAttempted)
 	{
 		g_bImportAPIAttempted = true;
-		HMODULE hNtDll = GetModuleHandle(L"kernel32.dll");
-		if (hNtDll)
+		HMODULE hKernelDll = GetModuleHandle(L"kernel32.dll");
+		if (hKernelDll)
 		{
-			_GetProcessInformation = (fnGetProcessInformation)GetProcAddress(hNtDll, "GetProcessInformation");
-			_SetProcessInformation = (fnSetProcessInformation)GetProcAddress(hNtDll, "SetProcessInformation");
+			_GetProcessInformation = (fnGetProcessInformation)GetProcAddress(hKernelDll, "GetProcessInformation");
+			_SetProcessInformation = (fnSetProcessInformation)GetProcAddress(hKernelDll, "SetProcessInformation");
 		}
 	}
 	_ASSERT(_GetProcessInformation && _SetProcessInformation);
