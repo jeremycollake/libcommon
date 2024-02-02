@@ -21,7 +21,7 @@ void ProcessOperations::ImportAPIs()
 			_SetProcessInformation = (fnSetProcessInformation)GetProcAddress(hKernelDll, "SetProcessInformation");
 		}
 	}
-	_ASSERT(_GetProcessInformation && _SetProcessInformation);
+	_ASSERT(!IsWindows10OrGreater() || (_GetProcessInformation && _SetProcessInformation));
 }
 
 HANDLE ProcessOperations::OpenQueryHandle(const unsigned long pid)
