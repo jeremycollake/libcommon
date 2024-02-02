@@ -23,6 +23,13 @@ bool g_darkModeSupported = false;
 bool g_darkModeEnabled = false;
 DWORD g_buildNumber = 0;
 
+bool ShouldAppsUseDarkModeSafe()
+{
+	if (g_darkModeSupported && _ShouldAppsUseDarkMode)
+		return _ShouldAppsUseDarkMode();
+	return false;
+}
+
 bool AllowDarkModeForWindow(HWND hWnd, bool allow)
 {
 	if (g_darkModeSupported)
@@ -104,7 +111,7 @@ void FixDarkScrollBar()
 						}
 					}
 					return _OpenNcThemeData(hWnd, classList);
-				};
+					};
 
 				addr->u1.Function = reinterpret_cast<ULONG_PTR>(static_cast<fnOpenNcThemeData>(MyOpenThemeData));
 				VirtualProtect(addr, sizeof(IMAGE_THUNK_DATA), oldProtect, &oldProtect);
