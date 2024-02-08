@@ -30,9 +30,9 @@ bool ShouldAppsUseDarkModeSafe()
 	return false;
 }
 
-bool AllowDarkModeForWindow(HWND hWnd, bool allow)
+bool AllowDarkModeForWindowSafe(const HWND hWnd, const bool allow)
 {
-	if (g_darkModeSupported)
+	if (g_darkModeSupported && _AllowDarkModeForWindow)
 		return _AllowDarkModeForWindow(hWnd, allow);
 	return false;
 }

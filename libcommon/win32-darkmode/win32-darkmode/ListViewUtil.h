@@ -52,8 +52,8 @@ void InitListView(const HWND hListView, const int subclassId)
 			HWND hHeader = ListView_GetHeader(hWnd);
 			if (g_darkModeSupported)
 			{
-				AllowDarkModeForWindow(hWnd, g_darkModeEnabled);
-				AllowDarkModeForWindow(hHeader, g_darkModeEnabled);
+				AllowDarkModeForWindowSafe(hWnd, g_darkModeEnabled);
+				AllowDarkModeForWindowSafe(hHeader, g_darkModeEnabled);
 			}
 
 			// fail-safe to header text color same as listview			

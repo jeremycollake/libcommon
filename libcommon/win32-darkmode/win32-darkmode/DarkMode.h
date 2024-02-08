@@ -96,7 +96,7 @@ extern bool g_darkModeEnabled;
 extern DWORD g_buildNumber;
 
 bool ShouldAppsUseDarkModeSafe();
-bool AllowDarkModeForWindow(HWND hWnd, bool allow);
+bool AllowDarkModeForWindowSafe(const HWND hWnd, const bool allow);
 bool IsHighContrast();
 void RefreshTitleBarThemeColor(HWND hWnd);
 bool IsColorSchemeChangeMessage(LPARAM lParam);
