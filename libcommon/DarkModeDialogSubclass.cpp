@@ -74,17 +74,44 @@ BOOL InitDarkModeDialogSubclass(const HWND hDlg, const int nSubclassId, const CO
 			{
 				auto pInfo = reinterpret_cast<SubclassInfo*>(dwRefData);
 
-				_AllowDarkModeForWindow(hDlg, g_darkModeEnabled);
+				AllowDarkModeForWindowSafe(hDlg, g_darkModeEnabled);
 				RefreshTitleBarThemeColor(hDlg);
 
 				for (auto i : pInfo->vControlIds)
 				{
-					HWND hButton = GetDlgItem(hDlg, i);
-					_AllowDarkModeForWindow(hButton, g_darkModeEnabled);
-					SendMessage(hButton, WM_THEMECHANGED, 0, 0);
+					HWND hWndCtrl = GetDlgItem(hDlg, i);
+					if (hWndCtrl)
+					{
+						AllowDarkModeForWindowSafe(hWndCtrl, g_darkModeEnabled);
+
+						// for some types of buttons use Explorer theme
+						bool bUseExplorerTheme = false;
+						WCHAR wszClassName[256] = { 0 };
+						if (GetClassName(hWndCtrl, wszClassName, _countof(wszClassName)))
+						{
+							if (_wcsicmp(wszClassName, L"Button") == 0)
+							{
+								DWORD dwButtonStyle = (GetWindowLong(hWndCtrl, GWL_STYLE) & BS_TYPEMASK);
+								if (dwButtonStyle == BS_PUSHBUTTON || dwButtonStyle == BS_DEFPUSHBUTTON)
+								{
+									bUseExplorerTheme = true;
+								}
+							}
+						}
+						if (bUseExplorerTheme)
+						{
+							SetWindowTheme(hWndCtrl, L"Explorer", nullptr);
+						}
+						else
+						{
+							SetWindowTheme(hWndCtrl, L"", L"");	// empty string is treated differently than nullptr by SetWindowTheme						
+						}
+
+						SendMessage(hWndCtrl, WM_THEMECHANGED, 0, 0);
+					}
 				}
 
-				UpdateWindow(hDlg);
+				RedrawWindow(hDlg, NULL, NULL, RDW_INVALIDATE | RDW_ALLCHILDREN);
 			}
 		}
 		break;
@@ -93,15 +120,7 @@ BOOL InitDarkModeDialogSubclass(const HWND hDlg, const int nSubclassId, const CO
 		},
 		nSubclassId, reinterpret_cast<DWORD_PTR>(pInfo));
 
-	// do first time init normally done in WM_INITDIALOG, but we're subclassing after WM_INITDIALOG has been processed
-	if (g_darkModeSupported && g_darkModeEnabled)
-	{
-		for (auto i : pInfo->vControlIds)
-		{
-			SetWindowTheme(GetDlgItem(hDlg, i), L"Explorer", nullptr);
-		}
-		SendMessage(hDlg, WM_THEMECHANGED, 0, 0);
-	}
+	// initiate first-time init
 	SendMessage(hDlg, WM_THEMECHANGED, 0, 0);
 
 	return bR;
