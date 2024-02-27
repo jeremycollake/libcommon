@@ -12,7 +12,7 @@
 #include <cctype>
 
 bool ListView_InitColumns(const HWND hWndListview, const HMODULE hResourceModule,
-	const std::vector<std::pair<int, int>>& vecStringIDAndWidthPairs)
+	const std::vector<std::pair<int, int>>& vecStringIDAndWidthPairs, const bool bReserveSpaceForScrollbar)
 {
 	bool bSuccess = true;
 
@@ -21,7 +21,7 @@ bool ListView_InitColumns(const HWND hWndListview, const HMODULE hResourceModule
 
 	// we'll leave room for the vertical scrollbar, even if it doesn't exist
 	// if we don't, then a horizontal scrollbar will also occur whenever a vertical scrollbar is present
-	int nScrollBarWidth = GetSystemMetrics(SM_CXVSCROLL);
+	int nScrollBarWidth = bReserveSpaceForScrollbar ? GetSystemMetrics(SM_CXVSCROLL) : 0;
 
 	unsigned int nTotalRunningWidth = 0;
 	unsigned int nIndex = 0;

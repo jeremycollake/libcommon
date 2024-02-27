@@ -11,7 +11,7 @@ std::wstring GetAppDataPath();
 //  supports -1 for column size, in which case it will be remaining width of listview
 // returns true if no errors occurred
 bool ListView_InitColumns(const HWND hWndListview, const HMODULE hResourceModule,
-	const std::vector<std::pair<int, int>>& vecStringIDAndWidthPairs);
+	const std::vector<std::pair<int, int>>& vecStringIDAndWidthPairs, const bool bReserveSpaceForScrollbar = true);
 
 void ListView_SetSingleSelection(const HWND hWndListview, const int nIndex);
 void ListView_UnselectAll(const HWND hWndListview);
