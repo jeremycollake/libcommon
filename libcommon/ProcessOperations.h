@@ -76,6 +76,7 @@ public:
 
 	unsigned long long LimitAffinityToInstalledCPUCores(unsigned long long bitmask);
 
+	unsigned long GetForegroundProcessId();
 	HWND GetLikelyPrimaryWindow(const unsigned long pid);
 
 	enum EfficiencyMode

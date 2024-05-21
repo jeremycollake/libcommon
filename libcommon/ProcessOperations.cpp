@@ -445,6 +445,17 @@ bool ProcessOperations::GetUserNameForProcess(const unsigned long pid, ATL::CStr
 	return 0;
 }
 
+unsigned long ProcessOperations::GetForegroundProcessId()
+{
+	HWND hWnd = GetForegroundWindow();
+	if (!hWnd)
+	{
+		return 0;
+	}
+	unsigned long dwPid = 0;
+	GetWindowThreadProcessId(hWnd, &dwPid);
+	return dwPid;
+}
 
 HWND ProcessOperations::GetLikelyPrimaryWindow(const unsigned long pid)
 {
