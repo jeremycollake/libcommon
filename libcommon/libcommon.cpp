@@ -645,3 +645,15 @@ HANDLE LaunchProcessWithElevation(const WCHAR* pwszFile, const WCHAR* pwszComman
 	}
 	return ShellExecInfo.hProcess;
 }
+
+bool AppendWindowText(const HWND hWnd, const WCHAR* pwszAppendage)
+{
+	WCHAR wszText[1024] = { 0 };
+	if (GetWindowText(hWnd, wszText, _countof(wszText) - 1) && wszText[0])
+	{
+		wcsncat_s(wszText, pwszAppendage, _countof(wszText) - 1);
+		SetWindowText(hWnd, wszText);
+		return true;
+	}
+	return false;
+}
