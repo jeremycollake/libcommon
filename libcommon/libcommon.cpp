@@ -68,7 +68,6 @@ bool ListView_InitColumns(const HWND hWndListview, const HMODULE hResourceModule
 		nIndex++;
 	}
 
-	_ASSERT(bSuccess);
 	return bSuccess;
 }
 
