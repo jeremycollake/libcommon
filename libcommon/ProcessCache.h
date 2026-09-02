@@ -22,6 +22,7 @@ private:
 	std::mutex prot;
 	std::unordered_map<unsigned int, double> mapCPUUse;
 	std::unordered_map<unsigned int, double> mapAverageCPU;
+	std::unordered_map<unsigned int, double> mapGPUUse;
 	std::unordered_map<unsigned int, unsigned __int64> mapPrivateWorkingSet;
 	std::unordered_map<unsigned int, std::unordered_map<valueName, unsigned long>> mapNamedULONGs;
 	std::unordered_map<unsigned int, std::unordered_map<valueName, unsigned __int64>> mapNamedULONGLONGs;
@@ -31,6 +32,7 @@ public:
 		std::lock_guard<std::mutex> lock(prot);
 		mapCPUUse.erase(pid);
 		mapAverageCPU.erase(pid);
+		mapGPUUse.erase(pid);
 		mapPrivateWorkingSet.erase(pid);
 		if (mapNamedULONGLONGs.find(pid) != mapNamedULONGLONGs.end())
 		{
@@ -43,8 +45,8 @@ public:
 		}
 		mapNamedULONGs.erase(pid);
 		// safety check for map leakage
-		_ASSERT(mapCPUUse.size() < 4096 && mapAverageCPU.size() < 4096 && mapPrivateWorkingSet.size() < 4096
-			&& mapNamedULONGs.size() < 4096 && mapNamedULONGLONGs.size() < 4096);
+		_ASSERT(mapCPUUse.size() < 4096 && mapAverageCPU.size() < 4096 && mapGPUUse.size() < 4096
+			&& mapPrivateWorkingSet.size() < 4096 && mapNamedULONGs.size() < 4096 && mapNamedULONGLONGs.size() < 4096);
 	}
 
 	void set_byName(const unsigned int pid, const valueName valName, const unsigned long nVal)
@@ -134,6 +136,25 @@ public:
 			return false;
 		}
 		cpu = i->second;
+		return true;
+	}
+
+	void set_GPUUse(const unsigned int pid, const double gpuUse)
+	{
+		std::lock_guard<std::mutex> lock(prot);
+		mapGPUUse[pid] = gpuUse;
+		_ASSERT(mapGPUUse.size() < 1000);
+	}
+	bool get_GPUUse(const unsigned int pid, double& gpuUse)
+	{
+		std::lock_guard<std::mutex> lock(prot);
+		auto i = mapGPUUse.find(pid);
+		if (i == mapGPUUse.end())
+		{
+			gpuUse = 0;
+			return false;
+		}
+		gpuUse = i->second;
 		return true;
 	}
 
