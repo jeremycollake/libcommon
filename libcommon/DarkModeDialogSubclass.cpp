@@ -74,6 +74,11 @@ BOOL InitDarkModeDialogSubclass(const HWND hDlg, const int nSubclassId, const CO
 			{
 				auto pInfo = reinterpret_cast<SubclassInfo*>(dwRefData);
 
+				// the user may have changed the system app color preference;
+				// re-evaluate the cached mode so this pass (and the dialog proc's
+				// own WM_THEMECHANGED handling, which runs after) use the new mode
+				g_darkModeEnabled = ShouldAppsUseDarkModeSafe() && !IsHighContrast();
+
 				AllowDarkModeForWindowSafe(hDlg, g_darkModeEnabled);
 				RefreshTitleBarThemeColor(hDlg);
 
