@@ -5,6 +5,7 @@
 
 #include "../../pch.h"
 #include "darkmode.h"
+#include <algorithm>
 
 fnSetWindowCompositionAttribute _SetWindowCompositionAttribute = nullptr;
 fnShouldAppsUseDarkMode _ShouldAppsUseDarkMode = nullptr;
@@ -533,4 +534,60 @@ void InitDarkStatusBar(const HWND hWnd, const int subclassId, DARKSUBCLASSPAINTI
 void DeinitDarkStatusBar(const HWND hWnd, const int subclassId)
 {
 	InitDarkStatusBar(hWnd, subclassId, nullptr, true);
+}
+
+// dark mode tooltips
+//
+// Tooltips are owned popups rather than children, so the WM_THEMECHANGED forwarding that dialogs and
+// the main window do for their child controls never reaches them. Every tooltip passed to
+// SetDarkModeForTooltip is therefore remembered so RefreshDarkModeForTooltips can re-apply the current
+// scheme to all of them when it changes; a subclass drops each tooltip from the list when it is destroyed.
+// "DarkMode_Explorer" keeps the native look, including any TTM_SETTITLE title and icon, which
+// TTM_SETTIPBKCOLOR would not since that only works with visual styles disabled.
+
+#define DARKMODE_TOOLTIP_SUBCLASS_ID 0x544F4F4C	// 'TOOL'
+
+static std::vector<HWND> g_vhwndDarkModeTooltips;	// GUI thread only
+
+static void ApplyTooltipTheme(HWND hWndTooltip, bool bDarkMode)
+{
+	AllowDarkModeForWindowSafe(hWndTooltip, bDarkMode);
+	SetWindowTheme(hWndTooltip, bDarkMode ? L"DarkMode_Explorer" : nullptr, nullptr);
+}
+
+// not a lambda so it can be removed (RemoveWindowSubclass matches on combo of subclassId and callback address)
+static LRESULT CALLBACK TooltipDarkModeSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
+{
+	if (uMsg == WM_NCDESTROY)
+	{
+		g_vhwndDarkModeTooltips.erase(std::remove(g_vhwndDarkModeTooltips.begin(), g_vhwndDarkModeTooltips.end(), hWnd), g_vhwndDarkModeTooltips.end());
+		RemoveWindowSubclass(hWnd, TooltipDarkModeSubclassProc, uIdSubclass);
+	}
+	return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+}
+
+void SetDarkModeForTooltip(HWND hWndTooltip, bool bDarkMode)
+{
+	if (!hWndTooltip || !IsWindow(hWndTooltip))
+	{
+		return;
+	}
+	ApplyTooltipTheme(hWndTooltip, bDarkMode);
+	if (std::find(g_vhwndDarkModeTooltips.begin(), g_vhwndDarkModeTooltips.end(), hWndTooltip) == g_vhwndDarkModeTooltips.end())
+	{
+		g_vhwndDarkModeTooltips.push_back(hWndTooltip);
+		SetWindowSubclass(hWndTooltip, TooltipDarkModeSubclassProc, DARKMODE_TOOLTIP_SUBCLASS_ID, 0);
+	}
+}
+
+void RefreshDarkModeForTooltips()
+{
+	const bool bDarkMode = g_darkModeSupported && g_darkModeEnabled;
+	for (HWND hWndTooltip : g_vhwndDarkModeTooltips)
+	{
+		if (IsWindow(hWndTooltip))
+		{
+			ApplyTooltipTheme(hWndTooltip, bDarkMode);
+		}
+	}
 }

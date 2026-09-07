@@ -117,6 +117,13 @@ bool ShouldThisAppUseDarkModeNow();
 void InitDarkStatusBar(const HWND hWnd, const int subclassId, DARKSUBCLASSPAINTINFO* pDarkInfo, bool bRemoveOnly = false);
 void DeinitDarkStatusBar(const HWND hWnd, const int subclassId);
 
+// Applies the dark or light visual style to a tooltips_class32 window (including the built-in tooltip a
+// listview or trackbar returns from LVM_GETTOOLTIPS / TBM_GETTOOLTIPS) and remembers it so that
+// RefreshDarkModeForTooltips can re-apply the current scheme to every such tooltip after a scheme change.
+// Tooltips are owned popups that the usual WM_THEMECHANGED forwarding to child controls never reaches.
+void SetDarkModeForTooltip(HWND hWndTooltip, bool bDarkMode);
+void RefreshDarkModeForTooltips();
+
 class DarkProgressBarBrushes
 {
 public:
