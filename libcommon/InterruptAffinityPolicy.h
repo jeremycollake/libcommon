@@ -132,6 +132,36 @@ namespace InterruptAffinityPolicy
 		}
 	};
 
+	// the exact registry form (type and bytes) of one value; backups store this so a restore is byte for byte
+	struct RawValue
+	{
+		bool bPresent = false;
+		DWORD dwType = REG_NONE;
+		std::vector<BYTE> data;
+		bool operator==(const RawValue& o) const { return bPresent == o.bPresent && (!bPresent || (dwType == o.dwType && data == o.data)); }
+		bool operator!=(const RawValue& o) const { return !(*this == o); }
+	};
+
+	struct RawSnapshot
+	{
+		enum { DevicePolicy, AssignmentSetOverride, DevicePriority, MSISupported, MessageNumberLimit, ValueCount };
+		RawValue values[ValueCount];
+		bool bAffinityPolicyKeyExists = false;
+		bool bMSIKeyExists = false;
+		bool operator==(const RawSnapshot& o) const
+		{
+			for (size_t nI = 0; nI < ValueCount; nI++)
+			{
+				if (values[nI] != o.values[nI])
+				{
+					return false;
+				}
+			}
+			return bAffinityPolicyKeyExists == o.bAffinityPolicyKeyExists && bMSIKeyExists == o.bMSIKeyExists;
+		}
+		bool operator!=(const RawSnapshot& o) const { return !(*this == o); }
+	};
+
 	namespace Detail
 	{
 		const WCHAR* const AffinityPolicySubkey = L"Interrupt Management\\Affinity Policy";
@@ -195,29 +225,85 @@ namespace InterruptAffinityPolicy
 			return true;
 		}
 
-		inline bool ReadAffinity(HKEY hKey, ULONGLONG& nOut)
+		// the five values, in RawSnapshot::values order
+		const WCHAR* const SnapshotSubkeys[] = { AffinityPolicySubkey, AffinityPolicySubkey, AffinityPolicySubkey, MSIPropertiesSubkey, MSIPropertiesSubkey };
+		const WCHAR* const SnapshotValueNames[] = { DevicePolicyValue, AssignmentSetOverrideValue, DevicePriorityValue, MSISupportedValue, MessageNumberLimitValue };
+
+		inline bool ReadRawValue(HKEY hKey, const WCHAR* pwszSubkey, const WCHAR* pwszValue, RawValue& value)
 		{
-			BYTE buffer[sizeof(ULONGLONG)] = {};
-			DWORD dwSize = sizeof(buffer);
-			if (ERROR_SUCCESS != RegGetValueW(hKey, AffinityPolicySubkey, AssignmentSetOverrideValue, RRF_RT_REG_BINARY, nullptr, buffer, &dwSize) || 0 == dwSize)
+			value = RawValue();
+			DWORD dwSize = 0;
+			if (ERROR_SUCCESS != RegGetValueW(hKey, pwszSubkey, pwszValue, RRF_RT_ANY | RRF_NOEXPAND, &value.dwType, nullptr, &dwSize))
+			{
+				return false;
+			}
+			value.data.resize(dwSize);
+			if (dwSize && ERROR_SUCCESS != RegGetValueW(hKey, pwszSubkey, pwszValue, RRF_RT_ANY | RRF_NOEXPAND, &value.dwType, value.data.data(), &dwSize))
+			{
+				value = RawValue();
+				return false;
+			}
+			value.data.resize(dwSize);
+			value.bPresent = true;
+			return true;
+		}
+
+		inline void ReadRawSnapshot(HKEY hKey, RawSnapshot& snapshot)
+		{
+			snapshot = RawSnapshot();
+			for (size_t nI = 0; nI < RawSnapshot::ValueCount; nI++)
+			{
+				ReadRawValue(hKey, SnapshotSubkeys[nI], SnapshotValueNames[nI], snapshot.values[nI]);
+			}
+			snapshot.bAffinityPolicyKeyExists = KeyExists(hKey, AffinityPolicySubkey);
+			snapshot.bMSIKeyExists = KeyExists(hKey, MSIPropertiesSubkey);
+		}
+
+		inline bool ParseDword(const RawValue& value, DWORD& dwOut)
+		{
+			if (!value.bPresent || REG_DWORD != value.dwType || value.data.size() != sizeof(DWORD))
+			{
+				return false;
+			}
+			memcpy(&dwOut, value.data.data(), sizeof(DWORD));
+			return true;
+		}
+
+		// KAFFINITY as REG_BINARY (INFs often write 1 byte) or REG_QWORD, up to 8 bytes
+		inline bool ParseAffinity(const RawValue& value, ULONGLONG& nOut)
+		{
+			if (!value.bPresent || (REG_BINARY != value.dwType && REG_QWORD != value.dwType) || value.data.empty() || value.data.size() > sizeof(ULONGLONG))
 			{
 				return false;
 			}
 			nOut = 0;
-			memcpy(&nOut, buffer, dwSize);	// 4 byte values exist from 32-bit era tools
+			memcpy(&nOut, value.data.data(), value.data.size());
 			return true;
 		}
+	}
 
+	// the typed view of a snapshot; a value stored in an unexpected type reads as absent (and SetSettings leaves it alone)
+	inline Settings SettingsFromSnapshot(const RawSnapshot& snapshot)
+	{
+		using namespace Detail;
+		Settings settings;
+		settings.bHasPolicy = ParseDword(snapshot.values[RawSnapshot::DevicePolicy], settings.dwPolicy);
+		settings.bHasAssignmentSetOverride = ParseAffinity(snapshot.values[RawSnapshot::AssignmentSetOverride], settings.nAssignmentSetOverride);
+		settings.bHasPriority = ParseDword(snapshot.values[RawSnapshot::DevicePriority], settings.dwPriority);
+		settings.bHasMSISupported = ParseDword(snapshot.values[RawSnapshot::MSISupported], settings.dwMSISupported);
+		settings.bHasMessageNumberLimit = ParseDword(snapshot.values[RawSnapshot::MessageNumberLimit], settings.dwMessageNumberLimit);
+		settings.bAffinityPolicyKeyExists = snapshot.bAffinityPolicyKeyExists;
+		settings.bMSIKeyExists = snapshot.bMSIKeyExists;
+		return settings;
+	}
+
+	namespace Detail
+	{
 		inline void ReadSettings(HKEY hKey, Settings& settings)
 		{
-			settings = Settings();
-			settings.bHasPolicy = ReadDword(hKey, AffinityPolicySubkey, DevicePolicyValue, settings.dwPolicy);
-			settings.bHasAssignmentSetOverride = ReadAffinity(hKey, settings.nAssignmentSetOverride);
-			settings.bHasPriority = ReadDword(hKey, AffinityPolicySubkey, DevicePriorityValue, settings.dwPriority);
-			settings.bHasMSISupported = ReadDword(hKey, MSIPropertiesSubkey, MSISupportedValue, settings.dwMSISupported);
-			settings.bHasMessageNumberLimit = ReadDword(hKey, MSIPropertiesSubkey, MessageNumberLimitValue, settings.dwMessageNumberLimit);
-			settings.bAffinityPolicyKeyExists = KeyExists(hKey, AffinityPolicySubkey);
-			settings.bMSIKeyExists = KeyExists(hKey, MSIPropertiesSubkey);
+			RawSnapshot snapshot;
+			ReadRawSnapshot(hKey, snapshot);
+			settings = SettingsFromSnapshot(snapshot);
 		}
 
 		// deletes the subkey if it has no values and no subkeys (a missing key is not an error)
@@ -402,48 +488,119 @@ namespace InterruptAffinityPolicy
 		return true;
 	}
 
-	// writes every value present in settings and deletes every value absent from it; requires elevation
-	inline bool SetSettings(const std::wstring& strInstanceId, const Settings& settings, LSTATUS* pStatus = nullptr)
+	inline bool GetSnapshot(const std::wstring& strInstanceId, RawSnapshot& snapshot)
 	{
-		LSTATUS status = ERROR_NOT_FOUND;
 		Detail::SingleDevice dev(strInstanceId);
-		if (dev.IsValid())
+		if (!dev.IsValid())
 		{
-			HKEY hKey = SetupDiOpenDevRegKey(dev.hDevInfo, &dev.devInfo, DICS_FLAG_GLOBAL, 0, DIREG_DEV, KEY_READ | KEY_WRITE);
-			if (INVALID_HANDLE_VALUE == hKey)
+			return false;
+		}
+		HKEY hKey = SetupDiOpenDevRegKey(dev.hDevInfo, &dev.devInfo, DICS_FLAG_GLOBAL, 0, DIREG_DEV, KEY_READ);
+		if (INVALID_HANDLE_VALUE == hKey)
+		{
+			return false;
+		}
+		Detail::ReadRawSnapshot(hKey, snapshot);
+		RegCloseKey(hKey);
+		return true;
+	}
+
+	namespace Detail
+	{
+		inline LSTATUS FirstError(std::initializer_list<LSTATUS> results)
+		{
+			for (LSTATUS result : results)
 			{
-				status = static_cast<LSTATUS>(GetLastError());
+				if (ERROR_SUCCESS != result)
+				{
+					return result;
+				}
 			}
-			else
+			return ERROR_SUCCESS;
+		}
+
+		// opens the device's hardware key for writing and runs fnWrite(hKey); requires elevation
+		template <typename FN> inline bool WriteDeviceKey(const std::wstring& strInstanceId, LSTATUS* pStatus, FN fnWrite)
+		{
+			LSTATUS status = ERROR_NOT_FOUND;
+			SingleDevice dev(strInstanceId);
+			if (dev.IsValid())
+			{
+				HKEY hKey = SetupDiOpenDevRegKey(dev.hDevInfo, &dev.devInfo, DICS_FLAG_GLOBAL, 0, DIREG_DEV, KEY_READ | KEY_WRITE);
+				if (INVALID_HANDLE_VALUE == hKey)
+				{
+					status = static_cast<LSTATUS>(GetLastError());
+				}
+				else
+				{
+					status = fnWrite(hKey);
+					RegCloseKey(hKey);
+				}
+			}
+			if (pStatus)
+			{
+				*pStatus = status;
+			}
+			return ERROR_SUCCESS == status;
+		}
+	}
+
+	// writes a snapshot exactly: each value with its original type and bytes, absent values deleted, and subkeys that
+	// did not exist removed once empty
+	inline bool SetSnapshot(const std::wstring& strInstanceId, const RawSnapshot& snapshot, LSTATUS* pStatus = nullptr)
+	{
+		return Detail::WriteDeviceKey(strInstanceId, pStatus, [&snapshot](HKEY hKey)
 			{
 				using namespace Detail;
-				const LSTATUS results[] =
+				for (size_t nI = 0; nI < RawSnapshot::ValueCount; nI++)
 				{
-					WriteOrDelete(hKey, AffinityPolicySubkey, DevicePolicyValue, settings.bHasPolicy, REG_DWORD, &settings.dwPolicy, sizeof(DWORD)),
-					WriteOrDelete(hKey, AffinityPolicySubkey, AssignmentSetOverrideValue, settings.bHasAssignmentSetOverride, REG_BINARY, &settings.nAssignmentSetOverride, sizeof(ULONGLONG)),
-					WriteOrDelete(hKey, AffinityPolicySubkey, DevicePriorityValue, settings.bHasPriority, REG_DWORD, &settings.dwPriority, sizeof(DWORD)),
-					WriteOrDelete(hKey, MSIPropertiesSubkey, MSISupportedValue, settings.bHasMSISupported, REG_DWORD, &settings.dwMSISupported, sizeof(DWORD)),
-					WriteOrDelete(hKey, MSIPropertiesSubkey, MessageNumberLimitValue, settings.bHasMessageNumberLimit, REG_DWORD, &settings.dwMessageNumberLimit, sizeof(DWORD)),
-					settings.bAffinityPolicyKeyExists ? ERROR_SUCCESS : DeleteKeyIfEmpty(hKey, AffinityPolicySubkey),
-					settings.bMSIKeyExists ? ERROR_SUCCESS : DeleteKeyIfEmpty(hKey, MSIPropertiesSubkey),
-				};
-				status = ERROR_SUCCESS;
-				for (LSTATUS result : results)
-				{
-					if (ERROR_SUCCESS != result)
+					const RawValue& value = snapshot.values[nI];
+					const LSTATUS status = WriteOrDelete(hKey, SnapshotSubkeys[nI], SnapshotValueNames[nI], value.bPresent, value.dwType,
+						value.data.data(), static_cast<DWORD>(value.data.size()));
+					if (ERROR_SUCCESS != status)
 					{
-						status = result;
-						break;
+						return status;
 					}
 				}
-				RegCloseKey(hKey);
-			}
-		}
-		if (pStatus)
+				return FirstError({
+					snapshot.bAffinityPolicyKeyExists ? ERROR_SUCCESS : DeleteKeyIfEmpty(hKey, AffinityPolicySubkey),
+					snapshot.bMSIKeyExists ? ERROR_SUCCESS : DeleteKeyIfEmpty(hKey, MSIPropertiesSubkey) });
+			});
+	}
+
+	// writes the values whose meaning differs from the device's current ones (new values as REG_DWORD, and the mask as
+	// an 8 byte REG_BINARY) and deletes those now absent. Values that do not change, including ones in an unexpected
+	// type, are left byte for byte as they are. Requires elevation.
+	inline bool SetSettings(const std::wstring& strInstanceId, const Settings& settings, LSTATUS* pStatus = nullptr)
+	{
+		RawSnapshot current;
+		if (!GetSnapshot(strInstanceId, current))
 		{
-			*pStatus = status;
+			if (pStatus)
+			{
+				*pStatus = ERROR_NOT_FOUND;
+			}
+			return false;
 		}
-		return ERROR_SUCCESS == status;
+		const Settings now = SettingsFromSnapshot(current);
+		return Detail::WriteDeviceKey(strInstanceId, pStatus, [&settings, &now](HKEY hKey)
+			{
+				using namespace Detail;
+				auto writeDword = [hKey](bool bChanged, const WCHAR* pwszSubkey, const WCHAR* pwszValue, bool bHas, const DWORD& dw)
+				{
+					return bChanged ? WriteOrDelete(hKey, pwszSubkey, pwszValue, bHas, REG_DWORD, &dw, sizeof(DWORD)) : ERROR_SUCCESS;
+				};
+				const auto changed = [](bool bHasA, ULONGLONG a, bool bHasB, ULONGLONG b) { return bHasA != bHasB || (bHasA && a != b); };
+				return FirstError({
+					writeDword(changed(settings.bHasPolicy, settings.dwPolicy, now.bHasPolicy, now.dwPolicy), AffinityPolicySubkey, DevicePolicyValue, settings.bHasPolicy, settings.dwPolicy),
+					changed(settings.bHasAssignmentSetOverride, settings.nAssignmentSetOverride, now.bHasAssignmentSetOverride, now.nAssignmentSetOverride)
+						? WriteOrDelete(hKey, AffinityPolicySubkey, AssignmentSetOverrideValue, settings.bHasAssignmentSetOverride, REG_BINARY, &settings.nAssignmentSetOverride, sizeof(ULONGLONG)) : ERROR_SUCCESS,
+					writeDword(changed(settings.bHasPriority, settings.dwPriority, now.bHasPriority, now.dwPriority), AffinityPolicySubkey, DevicePriorityValue, settings.bHasPriority, settings.dwPriority),
+					writeDword(changed(settings.bHasMSISupported, settings.dwMSISupported, now.bHasMSISupported, now.dwMSISupported), MSIPropertiesSubkey, MSISupportedValue, settings.bHasMSISupported, settings.dwMSISupported),
+					writeDword(changed(settings.bHasMessageNumberLimit, settings.dwMessageNumberLimit, now.bHasMessageNumberLimit, now.dwMessageNumberLimit), MSIPropertiesSubkey, MessageNumberLimitValue, settings.bHasMessageNumberLimit, settings.dwMessageNumberLimit),
+					settings.bAffinityPolicyKeyExists ? ERROR_SUCCESS : DeleteKeyIfEmpty(hKey, AffinityPolicySubkey),
+					settings.bMSIKeyExists ? ERROR_SUCCESS : DeleteKeyIfEmpty(hKey, MSIPropertiesSubkey) });
+			});
 	}
 
 	//
@@ -742,7 +899,8 @@ namespace InterruptAffinityPolicy
 
 	// Original settings of each device changed by the product, so they can be restored (dialog, Reset Configuration, uninstall).
 	// One subkey per device under HKLM\<strRootKey>, named by the instance id with '\' replaced by '#'. Each subkey holds the
-	// InstanceId and those of the policy / MSI values that existed, plus whether their subkeys existed. Requires elevation to write.
+	// InstanceId, the policy / MSI values that existed with their original types and bytes, and whether their subkeys existed.
+	// Requires elevation to write.
 	class BackupStore
 	{
 		std::wstring m_strRootKey;
@@ -770,7 +928,8 @@ namespace InterruptAffinityPolicy
 			return true;
 		}
 
-		bool Save(const std::wstring& strInstanceId, const Settings& original)
+		// stores the device's values exactly as they are (type and bytes); absent values are simply not stored
+		bool Save(const std::wstring& strInstanceId, const RawSnapshot& original)
 		{
 			HKEY hKey = nullptr;
 			if (ERROR_SUCCESS != RegCreateKeyExW(HKEY_LOCAL_MACHINE, GetDeviceKey(strInstanceId).c_str(), 0, nullptr, REG_OPTION_NON_VOLATILE, KEY_SET_VALUE | KEY_QUERY_VALUE, nullptr, &hKey, nullptr))
@@ -780,30 +939,25 @@ namespace InterruptAffinityPolicy
 			using namespace Detail;
 			const DWORD dwPolicyKeyExisted = original.bAffinityPolicyKeyExists ? 1 : 0;
 			const DWORD dwMSIKeyExisted = original.bMSIKeyExists ? 1 : 0;
-			const LSTATUS results[] =
-			{
+			LSTATUS status = FirstError({
 				RegSetValueExW(hKey, L"InstanceId", 0, REG_SZ, reinterpret_cast<const BYTE*>(strInstanceId.c_str()), static_cast<DWORD>((strInstanceId.size() + 1) * sizeof(WCHAR))),
 				RegSetValueExW(hKey, L"AffinityPolicyKeyExisted", 0, REG_DWORD, reinterpret_cast<const BYTE*>(&dwPolicyKeyExisted), sizeof(DWORD)),
-				RegSetValueExW(hKey, L"MSIKeyExisted", 0, REG_DWORD, reinterpret_cast<const BYTE*>(&dwMSIKeyExisted), sizeof(DWORD)),
-				WriteOrDelete(hKey, L"", DevicePolicyValue, original.bHasPolicy, REG_DWORD, &original.dwPolicy, sizeof(DWORD)),
-				WriteOrDelete(hKey, L"", AssignmentSetOverrideValue, original.bHasAssignmentSetOverride, REG_BINARY, &original.nAssignmentSetOverride, sizeof(ULONGLONG)),
-				WriteOrDelete(hKey, L"", DevicePriorityValue, original.bHasPriority, REG_DWORD, &original.dwPriority, sizeof(DWORD)),
-				WriteOrDelete(hKey, L"", MSISupportedValue, original.bHasMSISupported, REG_DWORD, &original.dwMSISupported, sizeof(DWORD)),
-				WriteOrDelete(hKey, L"", MessageNumberLimitValue, original.bHasMessageNumberLimit, REG_DWORD, &original.dwMessageNumberLimit, sizeof(DWORD)),
-			};
-			RegCloseKey(hKey);
-			for (LSTATUS result : results)
+				RegSetValueExW(hKey, L"MSIKeyExisted", 0, REG_DWORD, reinterpret_cast<const BYTE*>(&dwMSIKeyExisted), sizeof(DWORD)) });
+			for (size_t nI = 0; nI < RawSnapshot::ValueCount && ERROR_SUCCESS == status; nI++)
 			{
-				if (ERROR_SUCCESS != result)
-				{
-					Remove(strInstanceId);	// never leave a partial backup; it would restore the wrong values
-					return false;
-				}
+				const RawValue& value = original.values[nI];
+				status = WriteOrDelete(hKey, L"", SnapshotValueNames[nI], value.bPresent, value.dwType, value.data.data(), static_cast<DWORD>(value.data.size()));
+			}
+			RegCloseKey(hKey);
+			if (ERROR_SUCCESS != status)
+			{
+				Remove(strInstanceId);	// never leave a partial backup; it would restore the wrong values
+				return false;
 			}
 			return true;
 		}
 
-		bool Load(const std::wstring& strInstanceId, Settings& original) const
+		bool Load(const std::wstring& strInstanceId, RawSnapshot& original) const
 		{
 			HKEY hKey = nullptr;
 			if (ERROR_SUCCESS != RegOpenKeyExW(HKEY_LOCAL_MACHINE, GetDeviceKey(strInstanceId).c_str(), 0, KEY_QUERY_VALUE, &hKey))
@@ -811,17 +965,27 @@ namespace InterruptAffinityPolicy
 				return false;
 			}
 			using namespace Detail;
-			original = Settings();
+			original = RawSnapshot();
 			DWORD dwExisted = 0;
 			original.bAffinityPolicyKeyExists = ReadDword(hKey, nullptr, L"AffinityPolicyKeyExisted", dwExisted) && dwExisted;
 			original.bMSIKeyExists = ReadDword(hKey, nullptr, L"MSIKeyExisted", dwExisted) && dwExisted;
-			original.bHasPolicy = ReadDword(hKey, nullptr, DevicePolicyValue, original.dwPolicy);
-			original.bHasPriority = ReadDword(hKey, nullptr, DevicePriorityValue, original.dwPriority);
-			original.bHasMSISupported = ReadDword(hKey, nullptr, MSISupportedValue, original.dwMSISupported);
-			original.bHasMessageNumberLimit = ReadDword(hKey, nullptr, MessageNumberLimitValue, original.dwMessageNumberLimit);
-			DWORD dwSize = sizeof(original.nAssignmentSetOverride);
-			original.bHasAssignmentSetOverride = ERROR_SUCCESS == RegGetValueW(hKey, nullptr, AssignmentSetOverrideValue, RRF_RT_REG_BINARY, nullptr, &original.nAssignmentSetOverride, &dwSize);
+			for (size_t nI = 0; nI < RawSnapshot::ValueCount; nI++)
+			{
+				ReadRawValue(hKey, nullptr, SnapshotValueNames[nI], original.values[nI]);
+			}
 			RegCloseKey(hKey);
+			return true;
+		}
+
+		// the typed view of the saved original
+		bool Load(const std::wstring& strInstanceId, Settings& original) const
+		{
+			RawSnapshot snapshot;
+			if (!Load(strInstanceId, snapshot))
+			{
+				return false;
+			}
+			original = SettingsFromSnapshot(snapshot);
 			return true;
 		}
 
@@ -897,7 +1061,7 @@ namespace InterruptAffinityPolicy
 
 	namespace Detail
 	{
-		inline void RestartAndVerify(const std::wstring& strInstanceId, const Settings& previous, ApplyOutcome& outcome)
+		inline void RestartAndVerify(const std::wstring& strInstanceId, const RawSnapshot& previous, ApplyOutcome& outcome)
 		{
 			bool bRebootRequired = false;
 			if (!RestartDevice(strInstanceId, bRebootRequired) || bRebootRequired)
@@ -916,8 +1080,8 @@ namespace InterruptAffinityPolicy
 				outcome.status = AppliedRebootRequired;
 				return;
 			}
-			// failed to start (e.g. MSI turned on for a driver without MSI support): put the previous settings back
-			if (!SetSettings(strInstanceId, previous, &outcome.nError))
+			// failed to start (e.g. MSI turned on for a driver without MSI support): put the previous values back exactly
+			if (!SetSnapshot(strInstanceId, previous, &outcome.nError))
 			{
 				outcome.status = AppliedRollbackFailed;
 				return;
@@ -928,24 +1092,25 @@ namespace InterruptAffinityPolicy
 		}
 	}
 
-	// writes new settings for a device, first saving the original settings unless a backup already exists (the first
-	// change keeps the true original). If the new settings equal the original, the original is written exactly
-	// (removing subkeys the change created) and the backup is dropped. bRestart restarts the device to apply them;
-	// only pass it when AssessRestart says the device is safe to restart.
+	// writes new settings for a device, first saving its exact original values unless a backup already exists (the
+	// first change keeps the true original). If the new settings mean the same as the original, the original is written
+	// back byte for byte (removing subkeys the change created) and the backup is dropped. bRestart restarts the device
+	// to apply them; only pass it when AssessRestart says the device is safe to restart.
 	inline ApplyOutcome Apply(BackupStore& store, const std::wstring& strInstanceId, const Settings& updated, bool bRestart)
 	{
 		ApplyOutcome outcome;
-		Settings previous;
-		if (!GetSettings(strInstanceId, previous))
+		RawSnapshot previous;
+		if (!GetSnapshot(strInstanceId, previous))
 		{
 			outcome.nError = ERROR_NOT_FOUND;
 			return outcome;
 		}
-		Settings original;
+		const Settings previousSettings = SettingsFromSnapshot(previous);
+		RawSnapshot original;
 		bool bNewBackup = false;
 		if (!store.Load(strInstanceId, original))
 		{
-			if (updated == previous)
+			if (updated == previousSettings)
 			{
 				outcome.status = AppliedUnchanged;
 				return outcome;
@@ -958,20 +1123,20 @@ namespace InterruptAffinityPolicy
 			}
 			bNewBackup = true;
 		}
-		const bool bBackToOriginal = (updated == original);
-		const Settings& target = bBackToOriginal ? original : updated;
-		if (previous.IsIdentical(target) || (!bBackToOriginal && previous == target))
+		const bool bBackToOriginal = (updated == SettingsFromSnapshot(original));
+		if (bBackToOriginal ? (previous == original) : (updated == previousSettings))
 		{
-			outcome.status = AppliedUnchanged;
 			if (bBackToOriginal)
 			{
 				store.Remove(strInstanceId);
 			}
+			outcome.status = AppliedUnchanged;
 			return outcome;
 		}
-		if (!SetSettings(strInstanceId, target, &outcome.nError))
+		const bool bWritten = bBackToOriginal ? SetSnapshot(strInstanceId, original, &outcome.nError) : SetSettings(strInstanceId, updated, &outcome.nError);
+		if (!bWritten)
 		{
-			SetSettings(strInstanceId, previous);
+			SetSnapshot(strInstanceId, previous);
 			if (bNewBackup)
 			{
 				store.Remove(strInstanceId);
@@ -991,30 +1156,30 @@ namespace InterruptAffinityPolicy
 		return outcome;
 	}
 
-	// writes the saved original settings back and drops the backup
+	// writes the saved original values back exactly and drops the backup
 	inline ApplyOutcome Restore(BackupStore& store, const std::wstring& strInstanceId, bool bRestart)
 	{
 		ApplyOutcome outcome;
-		Settings original;
-		Settings previous;
+		RawSnapshot original;
+		RawSnapshot previous;
 		if (!store.Load(strInstanceId, original))
 		{
 			outcome.nError = ERROR_NOT_FOUND;
 			return outcome;
 		}
-		if (!GetSettings(strInstanceId, previous))
+		if (!GetSnapshot(strInstanceId, previous))
 		{
 			// device is gone from the system; nothing to restore
 			store.Remove(strInstanceId);
 			outcome.nError = ERROR_NOT_FOUND;
 			return outcome;
 		}
-		if (!SetSettings(strInstanceId, original, &outcome.nError))
+		if (!SetSnapshot(strInstanceId, original, &outcome.nError))
 		{
 			return outcome;
 		}
 		store.Remove(strInstanceId);
-		if (previous.IsIdentical(original))
+		if (previous == original)
 		{
 			outcome.status = AppliedUnchanged;
 			return outcome;
