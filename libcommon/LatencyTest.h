@@ -8,7 +8,8 @@
 // volatile registry marker records that we own it, so a session left by a crashed Process Lasso can be stopped while
 // one owned by another tool is left alone.
 //
-// Execution time = event timestamp - InitialTime (both raw QPC: ClientContext 1 plus PROCESS_TRACE_MODE_RAW_TIMESTAMP).
+// Execution time = event timestamp - InitialTime (both raw QPC: ClientContext 1 plus PROCESS_TRACE_MODE_RAW_TIMESTAMP),
+// less the time of ISRs/DPCs nested in it on the same CPU (NestedExecutions), so it matches xperf -a dpcisr.
 // Routine addresses map to kernel modules from SystemModuleInformation. Framework drivers (Wdf01000.sys, ndis.sys,
 // storport.sys, dxgkrnl.sys, ...) run callbacks for many client drivers, so their entries cover several drivers.
 //
@@ -491,6 +492,65 @@ namespace LatencyTest
 	}
 
 	//
+	// exclusive execution time, like xperf and WPA: an ISR that interrupts a routine on the same CPU (or a DPC that
+	// interrupts a threaded DPC) ends first, so its event arrives first; its time is taken out of the routine it
+	// interrupted, since it is counted for its own driver. Keeps the latest executions per processor (start, end,
+	// exclusive ticks); a routine with more nested ones than that keeps the rest in its time.
+	//
+
+	class NestedExecutions
+	{
+	public:
+		// the exclusive ticks of a routine that ran on nProcessor from nStart to nEnd (QPC); records it for routines it
+		// was nested in. Call in event order per processor.
+		ULONGLONG GetExclusiveTicks(const USHORT nProcessor, const ULONGLONG nStart, const ULONGLONG nEnd)
+		{
+			if (nProcessor >= m_vRings.size())
+			{
+				m_vRings.resize(nProcessor + 1);
+			}
+			Ring& ring = m_vRings[nProcessor];
+			ULONGLONG nNested = 0;
+			for (size_t n = 1; n <= RingLength; n++)
+			{
+				const Entry& entry = ring.entries[(ring.nNext + RingLength - n) % RingLength];
+				if (entry.nEnd <= nStart)
+				{
+					break;	// newest first: this one and every older one ended before this routine started
+				}
+				if (entry.nStart >= nStart && entry.nEnd <= nEnd)
+				{
+					nNested += entry.nTicks;
+				}
+			}
+			const ULONGLONG nTicks = nEnd - nStart > nNested ? nEnd - nStart - nNested : 0;
+			ring.entries[ring.nNext] = { nStart, nEnd, nTicks };
+			ring.nNext = (ring.nNext + 1) % RingLength;
+			return nTicks;
+		}
+
+		void Clear()
+		{
+			m_vRings.clear();
+		}
+
+	private:
+		static constexpr size_t RingLength = 32;
+		struct Entry
+		{
+			ULONGLONG nStart;
+			ULONGLONG nEnd;
+			ULONGLONG nTicks;
+		};
+		struct Ring
+		{
+			Entry entries[RingLength] = {};
+			size_t nNext = 0;
+		};
+		std::vector<Ring> m_vRings;
+	};
+
+	//
 	// Monitor
 	//
 
@@ -639,6 +699,7 @@ namespace LatencyTest
 			m_unknownModule.isr = ExecutionStats();
 			m_unknownModule.dpc = ExecutionStats();
 			m_vCPUs.clear();
+			m_nested.Clear();
 			m_mapProcesses.clear();
 			m_nHardFaults = 0;
 			m_nUnattributed = 0;
@@ -1071,11 +1132,13 @@ namespace LatencyTest
 			return &m_dqHistory[static_cast<size_t>(nSecond - m_nHistoryFirstSecond)];
 		}
 
-		void OnExecution(const bool bIsr, const ULONGLONG nRoutine, const ULONGLONG nTicks, const ULONGLONG nTime, const USHORT nProcessor)
+		void OnExecution(const bool bIsr, const ULONGLONG nRoutine, ULONGLONG nTicks, const ULONGLONG nTime, const USHORT nProcessor)
 		{
 			bool bUnknown = false;
 			{
 				SRWLockExclusive lock(m_lock);
+				nTicks = m_nested.GetExclusiveTicks(nProcessor, nTime - nTicks, nTime);
+
 				const int nModule = FindModule(nRoutine);
 				ModuleStats& module = nModule >= 0 ? m_vModuleStats[nModule] : m_unknownModule;
 				bUnknown = nModule < 0;
@@ -1322,6 +1385,7 @@ namespace LatencyTest
 		std::vector<ModuleStats> m_vRetiredModules;	// unloaded modules with results (reported as is)
 		ModuleStats m_unknownModule;
 		std::vector<CPUStats> m_vCPUs;
+		NestedExecutions m_nested;				// guarded by m_lock
 		std::map<DWORD, ProcessFaults> m_mapProcesses;
 		ExecutionStats m_isr;
 		ExecutionStats m_dpc;
