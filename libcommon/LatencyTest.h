@@ -58,6 +58,11 @@ namespace LatencyTest
 	constexpr ULONGLONG BadExecutionUs = 2000;
 	constexpr ULONGLONG WarningWakeUs = 1000;
 	constexpr ULONGLONG BadWakeUs = 3000;
+	// thread wakes are judged by how often they are slow, not by the slowest one: an idle PC shows an isolated 3-10 ms
+	// wake now and then (waking a core from a deep idle state, the hypervisor's idle path) while a spinning thread on the
+	// same CPUs never loses that much time. BadWakeUs or slower more often than this is Bad, any at all is Warning;
+	// WarningWakeUs or slower more often than this is Warning. Rates use at least one minute, so early on they are counts.
+	constexpr double FrequentWakesPerMinute = 6.0;
 
 	constexpr size_t HistoryLengthSeconds = 300;
 	constexpr ULONGLONG MatchDelaySeconds = 3;		// how far thread wake results lag behind (ETW delivers events late)	// per-second buckets kept for the graph
@@ -218,23 +223,45 @@ namespace LatencyTest
 			return dTotal > 0 ? static_cast<double>(nTicks) * 100.0 / dTotal : 0.0;
 		}
 
-		Verdict GetVerdict() const
+		// ISRs and DPCs: the longest single execution, since one long routine is a driver problem
+		Verdict GetExecutionVerdict() const
 		{
-			if (isr.nCount + dpc.nCount == 0 && wake.nCount < 100)
+			if (isr.nCount + dpc.nCount == 0)
 			{
 				return VerdictUnknown;
 			}
 			const double dExec = ToMicroseconds((std::max)(isr.nMaxTicks, dpc.nMaxTicks));
-			const double dWake = ToMicroseconds(wake.nMaxTicks);
-			if (dExec >= BadExecutionUs || dWake >= BadWakeUs)
+			return dExec >= BadExecutionUs ? VerdictBad : dExec >= WarningExecutionUs ? VerdictWarning : VerdictGood;
+		}
+
+		// slow thread wakes per minute of measuring (at least one minute)
+		double GetWakesPerMinute(const ULONGLONG nWakes) const
+		{
+			const double dMinutes = nFrequency ? static_cast<double>(nElapsedTicks) / static_cast<double>(nFrequency) / 60.0 : 0.0;
+			return static_cast<double>(nWakes) / (std::max)(1.0, dMinutes);
+		}
+
+		// thread wakes: how often they are slow (FrequentWakesPerMinute)
+		Verdict GetWakeVerdict() const
+		{
+			if (wake.nCount < 100)
+			{
+				return VerdictUnknown;
+			}
+			if (GetWakesPerMinute(wake.nOverBad) > FrequentWakesPerMinute)
 			{
 				return VerdictBad;
 			}
-			if (dExec >= WarningExecutionUs || dWake >= WarningWakeUs)
+			if (wake.nOverBad || GetWakesPerMinute(wake.nOverWarning) > FrequentWakesPerMinute)
 			{
 				return VerdictWarning;
 			}
 			return VerdictGood;
+		}
+
+		Verdict GetVerdict() const
+		{
+			return (std::max)(GetExecutionVerdict(), GetWakeVerdict());
 		}
 
 		// the module with the longest single ISR or DPC; nullptr if none
@@ -1196,6 +1223,15 @@ namespace LatencyTest
 				}
 			}
 			SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
+			// Windows 10 1709+ power-throttles (EcoQoS) threads of a process whose windows are not visible, e.g. minimized or in
+			// a disconnected session; audio threads are not throttled, so opt this one out explicitly. Older Windows has no
+			// SetThreadInformation or ThreadPowerThrottling (3), and the call fails harmlessly.
+			typedef BOOL(WINAPI* SetThreadInformationFn)(HANDLE, int, LPVOID, DWORD);
+			if (const auto pSetThreadInformation = reinterpret_cast<SetThreadInformationFn>(GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "SetThreadInformation")))
+			{
+				struct { ULONG Version; ULONG ControlMask; ULONG StateMask; } throttling = { 1, 0x1, 0 };	// THREAD_POWER_THROTTLING_EXECUTION_SPEED off
+				pSetThreadInformation(GetCurrentThread(), 3, &throttling, sizeof(throttling));
+			}
 			const HANDLE hHandles[] = { m_hStopEvent, hTimer };
 			for (;;)
 			{
