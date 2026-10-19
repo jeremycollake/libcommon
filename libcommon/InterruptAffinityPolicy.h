@@ -1214,4 +1214,32 @@ namespace InterruptAffinityPolicy
 		}
 		return bChanged;
 	}
+
+	// The backup store every Bitsum program with the interrupt tool shares (Process Lasso, LatencyTest, IRQControl), so each
+	// shows and restores the changes made in any of them. Until 2026-10 it was under Process Lasso's key (LegacyBackupRootKey),
+	// which Process Lasso's uninstaller deletes.
+	const WCHAR* const SharedBackupRootKey = L"Software\\Bitsum\\InterruptAffinityBackup";
+	const WCHAR* const LegacyBackupRootKey = L"Software\\ProcessLasso\\InterruptAffinityBackup";
+	// held while an interrupt settings editor is open in any of those programs, so only one edits the shared backups at a time
+	const WCHAR* const EditorMutexName = L"Global\\BitsumInterruptAffinityEditor";
+
+	// moves the backups under pwszFromRootKey into pwszToRootKey, byte for byte. The first change wins: a device already in
+	// the destination keeps that backup, and the old one is dropped. A backup that fails to copy stays where it was.
+	inline void MigrateBackups(const WCHAR* pwszFromRootKey, const WCHAR* pwszToRootKey)
+	{
+		BackupStore from(pwszFromRootKey);
+		BackupStore to(pwszToRootKey);
+		for (const auto& strInstanceId : from.List())
+		{
+			RawSnapshot original;
+			if (!to.Has(strInstanceId))
+			{
+				if (!from.Load(strInstanceId, original) || !to.Save(strInstanceId, original))
+				{
+					continue;
+				}
+			}
+			from.Remove(strInstanceId);
+		}
+	}
 }
