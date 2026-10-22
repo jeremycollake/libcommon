@@ -65,9 +65,10 @@ namespace LatencyTest
 	// WarningWakeUs or slower more often than this is Warning. Rates use at least one minute, so early on they are counts.
 	constexpr double FrequentWakesPerMinute = 6.0;
 
-	constexpr size_t HistoryLengthSeconds = 300;
-	constexpr ULONGLONG MatchDelaySeconds = 3;		// how far thread wake results lag behind (ETW delivers events late)	// per-second buckets kept for the graph
+	constexpr size_t HistoryLengthSeconds = 300;	// per-second buckets kept for the graph
+	constexpr ULONGLONG MatchDelaySeconds = 3;		// how far thread wake results lag behind (ETW delivers events late)
 	constexpr int HistogramBuckets = 18;			// [0] < 1 us, [n] = 2^(n-1) .. 2^n - 1 us, last is everything above
+	constexpr size_t SpikeListLength = 100;			// the longest ISR/DPC executions kept with their time, and the slowest wakes
 
 	// kernel event classes (classic MOF providers of the SystemTraceProvider)
 	constexpr GUID PerfInfoGuid = { 0xce1dbfb4, 0x137e, 0x4da6, { 0x87, 0xb0, 0x3f, 0x59, 0xaa, 0x10, 0x2c, 0xbc } };
@@ -168,6 +169,19 @@ namespace LatencyTest
 		ExecutionStats wake;	// thread wakes that ran on this CPU
 	};
 
+	// one of the longest ISR/DPC executions, or one of the slowest thread wakes, with when it happened (the Spikes tab)
+	enum SpikeKind : UCHAR { SpikeIsr, SpikeDpc, SpikeWake };
+
+	struct SpikeEvent
+	{
+		FILETIME ftTime = {};		// when it ended, UTC
+		ULONGLONG nTicks = 0;		// how long it ran, or how long the wake took (QPC ticks)
+		USHORT nProcessor = 0;
+		UCHAR nKind = SpikeIsr;
+		std::wstring strModule;		// the driver's file name (ISR/DPC); empty for a wake or an unknown module
+		ULONGLONG nModuleBase = 0;
+	};
+
 	struct ProcessFaults
 	{
 		DWORD dwProcessId = 0;
@@ -204,6 +218,7 @@ namespace LatencyTest
 		std::vector<ModuleStats> vModules;		// only modules with ISRs or DPCs
 		std::vector<CPUStats> vCPUs;			// index = processor index
 		std::vector<ProcessFaults> vProcesses;	// only with hard faults
+		std::vector<SpikeEvent> vSpikes;		// the SpikeListLength longest executions and the slowest wakes, newest first
 		std::vector<SecondBucket> vHistory;		// oldest first, the last entry is the current second
 		ULONGLONG perfInfoOpcodes[256] = {};	// diagnostics: PerfInfo events seen, by opcode
 
@@ -701,6 +716,8 @@ namespace LatencyTest
 			m_vCPUs.clear();
 			m_nested.Clear();
 			m_mapProcesses.clear();
+			m_vExecutionSpikes.clear();
+			m_vWakeSpikes.clear();
 			m_nHardFaults = 0;
 			m_nUnattributed = 0;
 			m_dqHistory.clear();
@@ -764,6 +781,13 @@ namespace LatencyTest
 			{
 				snapshot.vProcesses.push_back(entry.second);
 			}
+			snapshot.vSpikes.reserve(m_vExecutionSpikes.size() + m_vWakeSpikes.size());
+			snapshot.vSpikes.insert(snapshot.vSpikes.end(), m_vExecutionSpikes.begin(), m_vExecutionSpikes.end());
+			snapshot.vSpikes.insert(snapshot.vSpikes.end(), m_vWakeSpikes.begin(), m_vWakeSpikes.end());
+			std::sort(snapshot.vSpikes.begin(), snapshot.vSpikes.end(), [](const SpikeEvent& a, const SpikeEvent& b)
+				{
+					return CompareFileTime(&a.ftTime, &b.ftTime) > 0;
+				});
 			snapshot.vHistory.assign(m_dqHistory.begin(), m_dqHistory.end());
 			memcpy(snapshot.perfInfoOpcodes, m_perfInfoOpcodes, sizeof(m_perfInfoOpcodes));
 		}
@@ -1104,6 +1128,42 @@ namespace LatencyTest
 			return m_vCPUs[nProcessor];
 		}
 
+		// keeps the SpikeListLength longest events of a list, longest first; an event shorter than every kept one costs one
+		// compare. nTime is when the event ended (QPC); its wall clock time is now, less how long ago that was. Call with
+		// the lock held.
+		void AddSpike(std::vector<SpikeEvent>& vSpikes, const ULONGLONG nTicks, const ULONGLONG nTime, const USHORT nProcessor, const UCHAR nKind, const ModuleStats* pModule)
+		{
+			if (vSpikes.size() >= SpikeListLength && nTicks <= vSpikes.back().nTicks)
+			{
+				return;
+			}
+			FILETIME ftNow;
+			GetSystemTimeAsFileTime(&ftNow);
+			LARGE_INTEGER liNow;
+			QueryPerformanceCounter(&liNow);
+			const ULONGLONG nAgoTicks = static_cast<ULONGLONG>(liNow.QuadPart) > nTime ? static_cast<ULONGLONG>(liNow.QuadPart) - nTime : 0;
+			const ULONGLONG nAgo100ns = m_nFrequency ? nAgoTicks / m_nFrequency * 10000000ULL + (nAgoTicks % m_nFrequency) * 10000000ULL / m_nFrequency : 0;
+			ULARGE_INTEGER uli = { { ftNow.dwLowDateTime, ftNow.dwHighDateTime } };
+			uli.QuadPart -= (std::min)(uli.QuadPart, nAgo100ns);
+			SpikeEvent spike;
+			spike.ftTime.dwLowDateTime = uli.LowPart;
+			spike.ftTime.dwHighDateTime = uli.HighPart;
+			spike.nTicks = nTicks;
+			spike.nProcessor = nProcessor;
+			spike.nKind = nKind;
+			if (pModule)
+			{
+				spike.strModule = pModule->strName;
+				spike.nModuleBase = pModule->nBase;
+			}
+			const auto it = std::upper_bound(vSpikes.begin(), vSpikes.end(), nTicks, [](const ULONGLONG n, const SpikeEvent& s) { return n > s.nTicks; });
+			vSpikes.insert(it, std::move(spike));
+			if (vSpikes.size() > SpikeListLength)
+			{
+				vSpikes.pop_back();
+			}
+		}
+
 		// the history bucket for an event at nTime (QPC); call with the lock held
 		SecondBucket* GetBucket(const ULONGLONG nTime)
 		{
@@ -1159,6 +1219,7 @@ namespace LatencyTest
 				{
 					m_nUnattributed++;
 				}
+				AddSpike(m_vExecutionSpikes, nTicks, nTime, nProcessor, bIsr ? SpikeIsr : SpikeDpc, bUnknown ? nullptr : &module);
 				if (SecondBucket* pBucket = GetBucket(nTime))
 				{
 					if (bIsr)
@@ -1339,6 +1400,7 @@ namespace LatencyTest
 						const ULONGLONG nLatency = wake.nTime - nReady;
 						m_wake.Add(nLatency, m_nTicksPerUs, m_nWakeWarningTicks, m_nWakeBadTicks);
 						GetCPU(wake.nProcessor).wake.Add(nLatency, m_nTicksPerUs, m_nWakeWarningTicks, m_nWakeBadTicks);
+						AddSpike(m_vWakeSpikes, nLatency, wake.nTime, wake.nProcessor, SpikeWake, nullptr);
 						if (SecondBucket* pBucket = GetBucket(wake.nTime))
 						{
 							pBucket->nMaxWakeTicks = (std::max)(pBucket->nMaxWakeTicks, nLatency);
@@ -1387,6 +1449,8 @@ namespace LatencyTest
 		std::vector<CPUStats> m_vCPUs;
 		NestedExecutions m_nested;				// guarded by m_lock
 		std::map<DWORD, ProcessFaults> m_mapProcesses;
+		std::vector<SpikeEvent> m_vExecutionSpikes;	// the longest ISRs/DPCs, longest first (AddSpike)
+		std::vector<SpikeEvent> m_vWakeSpikes;		// the slowest thread wakes, slowest first
 		ExecutionStats m_isr;
 		ExecutionStats m_dpc;
 		ExecutionStats m_wake;
