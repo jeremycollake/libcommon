@@ -114,6 +114,9 @@ namespace InterruptAffinityPolicy
 		bool bHasTargetSet = false;
 		USHORT nTargetGroup = 0;
 		ULONGLONG nTargetSet = 0;
+		// names of the devices attached below this one (disks, USB devices, audio endpoints), in device tree order with
+		// repeats kept; filled by FillConnectedDevices, not Enumerate
+		std::vector<std::wstring> vConnected;
 
 		InterruptType GetInterruptType() const
 		{
@@ -471,6 +474,158 @@ namespace InterruptAffinityPolicy
 		return true;
 	}
 
+	namespace Detail
+	{
+		// DEVPKEY_Device_BusReportedDeviceDesc, declared locally so no translation unit needs INITGUID
+		const DEVPROPKEY BusReportedDeviceDescKey = { { 0x540b947e, 0x8b40, 0x45bc, { 0xa8, 0xa2, 0x6a, 0x0b, 0x89, 0x4c, 0xbd, 0xa2 } }, 4 };
+
+		const int MaxConnectedDepth = 8;
+		const size_t MaxConnectedNodes = 64;	// per row
+
+		inline std::wstring GetInstanceId(DEVINST devInst)
+		{
+			WCHAR wszInstanceId[MAX_DEVICE_ID_LEN] = {};
+			return CR_SUCCESS == CM_Get_Device_IDW(devInst, wszInstanceId, _countof(wszInstanceId), 0) ? std::wstring(wszInstanceId) : std::wstring();
+		}
+
+		inline std::wstring GetDevNodeString(DEVINST devInst, ULONG nProperty)
+		{
+			WCHAR wszBuffer[1024] = {};
+			ULONG nType = 0;
+			ULONG nSize = sizeof(wszBuffer) - 2 * sizeof(WCHAR);
+			if (CR_SUCCESS == CM_Get_DevNode_Registry_PropertyW(devInst, nProperty, &nType, wszBuffer, &nSize, 0) && (REG_SZ == nType || REG_MULTI_SZ == nType))
+			{
+				return wszBuffer;
+			}
+			return std::wstring();
+		}
+
+		// the name a person recognizes: the friendly name, else for a USB device the product string it reports
+		// ("USB Receiver" rather than "USB Input Device"), else the device description
+		inline std::wstring GetDevNodeDisplayName(DEVINST devInst, const std::wstring& strInstanceId)
+		{
+			std::wstring strName = GetDevNodeString(devInst, CM_DRP_FRIENDLYNAME);
+			if (strName.empty() && 0 == _wcsnicmp(strInstanceId.c_str(), L"USB\\", 4))
+			{
+				WCHAR wszBuffer[512] = {};
+				DEVPROPTYPE propType = 0;
+				ULONG nSize = sizeof(wszBuffer) - sizeof(WCHAR);
+				if (CR_SUCCESS == CM_Get_DevNode_PropertyW(devInst, &BusReportedDeviceDescKey, &propType, reinterpret_cast<PBYTE>(wszBuffer), &nSize, 0) && DEVPROP_TYPE_STRING == propType)
+				{
+					strName = wszBuffer;
+				}
+			}
+			if (strName.empty())
+			{
+				strName = GetDevNodeString(devInst, CM_DRP_DEVICEDESC);
+			}
+			return strName;
+		}
+
+		inline bool HasCompatibleIdPrefix(DEVINST devInst, const WCHAR* pwszPrefix)
+		{
+			WCHAR wszIds[2048] = {};
+			ULONG nType = 0;
+			ULONG nSize = sizeof(wszIds) - 2 * sizeof(WCHAR);
+			if (CR_SUCCESS != CM_Get_DevNode_Registry_PropertyW(devInst, CM_DRP_COMPATIBLEIDS, &nType, wszIds, &nSize, 0) || REG_MULTI_SZ != nType)
+			{
+				return false;
+			}
+			const size_t cchPrefix = wcslen(pwszPrefix);
+			for (const WCHAR* pwsz = wszIds; *pwsz; pwsz += wcslen(pwsz) + 1)
+			{
+				if (0 == _wcsnicmp(pwsz, pwszPrefix, cchPrefix))
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+
+		// a node that only connects other devices: PCI bridges and switch ports, USB hubs and root hubs, USB composite devices
+		inline bool IsPassThroughDevNode(DEVINST devInst, const std::wstring& strInstanceId)
+		{
+			static const WCHAR* const passThroughServices[] = { L"USBHUB3", L"usbhub", L"iusb3hub", L"usbccgp" };
+			const std::wstring strService = GetDevNodeString(devInst, CM_DRP_SERVICE);
+			for (const WCHAR* pwszService : passThroughServices)
+			{
+				if (0 == _wcsicmp(strService.c_str(), pwszService))
+				{
+					return true;
+				}
+			}
+			// PCI base class 06, subclass 04 (PCI-to-PCI) or 09 (semi-transparent PCI-to-PCI)
+			return 0 == _wcsnicmp(strInstanceId.c_str(), L"PCI\\", 4)
+				&& (HasCompatibleIdPrefix(devInst, L"PCI\\CC_0604") || HasCompatibleIdPrefix(devInst, L"PCI\\CC_0609"));
+		}
+
+		inline void CollectConnected(DEVINST devParent, const std::set<DEVINST>& setRows, int nDepth, size_t& nNodes, std::vector<std::wstring>& vOut)
+		{
+			static const WCHAR* const softwareOnlyClasses[] = { L"SoftwareDevice", L"SoftwareComponent", L"Volume", L"VolumeSnapshot" };
+			DEVINST devChild = 0;
+			CONFIGRET cr = CM_Get_Child(&devChild, devParent, 0);
+			while (CR_SUCCESS == cr && nNodes < MaxConnectedNodes)
+			{
+				nNodes++;
+				// a device with interrupts of its own is a row of its own and lists what is below it
+				if (!setRows.count(devChild))
+				{
+					const std::wstring strClass = GetDevNodeString(devChild, CM_DRP_CLASS);
+					const bool bSoftwareOnly = std::any_of(std::begin(softwareOnlyClasses), std::end(softwareOnlyClasses),
+						[&strClass](const WCHAR* pwszClass) { return 0 == _wcsicmp(strClass.c_str(), pwszClass); });
+					if (!bSoftwareOnly)
+					{
+						const std::wstring strInstanceId = GetInstanceId(devChild);
+						if (!IsPassThroughDevNode(devChild, strInstanceId))
+						{
+							const std::wstring strName = GetDevNodeDisplayName(devChild, strInstanceId);
+							if (!strName.empty())
+							{
+								vOut.push_back(strName);
+							}
+						}
+						if (nDepth + 1 < MaxConnectedDepth)
+						{
+							CollectConnected(devChild, setRows, nDepth + 1, nNodes, vOut);
+						}
+					}
+				}
+				DEVINST devSibling = 0;
+				cr = CM_Get_Sibling(&devSibling, devChild, 0);
+				devChild = devSibling;
+			}
+		}
+	}
+
+	// fills each device's vConnected from the device tree: the devices attached below it, skipping the nodes that only
+	// connect others (bridges, hubs, composite parents) and software-only ones (volumes, software components), and
+	// stopping at devices that are in vDevices themselves. One tree walk per device, so it is a separate step.
+	inline void FillConnectedDevices(std::vector<Device>& vDevices)
+	{
+		std::vector<DEVINST> vDevInsts(vDevices.size(), 0);
+		std::set<DEVINST> setRows;
+		for (size_t nI = 0; nI < vDevices.size(); nI++)
+		{
+			vDevices[nI].vConnected.clear();
+			if (CR_SUCCESS == CM_Locate_DevNodeW(&vDevInsts[nI], const_cast<DEVINSTID_W>(vDevices[nI].strInstanceId.c_str()), CM_LOCATE_DEVNODE_NORMAL))
+			{
+				setRows.insert(vDevInsts[nI]);
+			}
+			else
+			{
+				vDevInsts[nI] = 0;
+			}
+		}
+		for (size_t nI = 0; nI < vDevices.size(); nI++)
+		{
+			if (vDevInsts[nI])
+			{
+				size_t nNodes = 0;
+				Detail::CollectConnected(vDevInsts[nI], setRows, 0, nNodes, vDevices[nI].vConnected);
+			}
+		}
+	}
+
 	inline bool GetSettings(const std::wstring& strInstanceId, Settings& settings)
 	{
 		Detail::SingleDevice dev(strInstanceId);
@@ -629,12 +784,6 @@ namespace InterruptAffinityPolicy
 	{
 		// GUID_DEVINTERFACE_DISK, declared locally so no translation unit needs INITGUID
 		const GUID DiskInterfaceGuid = { 0x53f56307, 0xb6bf, 0x11d0, { 0x94, 0xf2, 0x00, 0xa0, 0xc9, 0x1e, 0xfb, 0x8b } };
-
-		inline std::wstring GetInstanceId(DEVINST devInst)
-		{
-			WCHAR wszInstanceId[MAX_DEVICE_ID_LEN] = {};
-			return CR_SUCCESS == CM_Get_Device_IDW(devInst, wszInstanceId, _countof(wszInstanceId), 0) ? std::wstring(wszInstanceId) : std::wstring();
-		}
 
 		inline void AddWithAncestors(DEVINST devInst, std::set<std::wstring>& setOut)
 		{
