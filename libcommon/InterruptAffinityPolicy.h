@@ -53,6 +53,14 @@ namespace InterruptAffinityPolicy
 		InterruptMessage,	// MSI or MSI-X; allocated message interrupts report an IRQ number above 0x7fffffff
 	};
 
+	// DEVPKEY_PciDevice_InterruptSupport bits (pciprop.h DevProp_PciDevice_InterruptType_*)
+	enum InterruptSupport : DWORD
+	{
+		InterruptSupportLine = 0x1,
+		InterruptSupportMSI = 0x2,
+		InterruptSupportMSIX = 0x4,
+	};
+
 	// the registry settings of a device; each value is optional (absent means the driver or system default)
 	struct Settings
 	{
@@ -114,6 +122,9 @@ namespace InterruptAffinityPolicy
 		bool bHasTargetSet = false;
 		USHORT nTargetGroup = 0;
 		ULONGLONG nTargetSet = 0;
+		// what a PCI device supports, as its bus driver reports it; 0 when not reported (non-PCI devices)
+		DWORD nInterruptSupport = 0;	// InterruptSupport* bits
+		DWORD nMessageMaximum = 0;		// the most MSI / MSI-X messages it can use
 		// names of the devices attached below this one (disks, USB devices, audio endpoints), in device tree order with
 		// repeats kept; filled by FillConnectedDevices, not Enumerate
 		std::vector<std::wstring> vConnected;
@@ -208,6 +219,19 @@ namespace InterruptAffinityPolicy
 				return wszBuffer;
 			}
 			return std::wstring();
+		}
+
+		// DEVPKEY_PciDevice_InterruptSupport and DEVPKEY_PciDevice_InterruptMessageMaximum (pciprop.h), declared locally so
+		// no translation unit needs INITGUID
+		const DEVPROPKEY PciInterruptSupportKey = { { 0x3ab22e31, 0x8264, 0x4b4e, { 0x9a, 0xf5, 0xa8, 0xd2, 0xd8, 0xe3, 0x3e, 0x62 } }, 14 };
+		const DEVPROPKEY PciInterruptMessageMaximumKey = { { 0x3ab22e31, 0x8264, 0x4b4e, { 0x9a, 0xf5, 0xa8, 0xd2, 0xd8, 0xe3, 0x3e, 0x62 } }, 15 };
+
+		inline DWORD GetDevNodeUInt32(DEVINST devInst, const DEVPROPKEY& key)
+		{
+			DWORD dwValue = 0;
+			DEVPROPTYPE propType = 0;
+			ULONG nSize = sizeof(dwValue);
+			return (CR_SUCCESS == CM_Get_DevNode_PropertyW(devInst, &key, &propType, reinterpret_cast<PBYTE>(&dwValue), &nSize, 0) && DEVPROP_TYPE_UINT32 == propType) ? dwValue : 0;
 		}
 
 		inline bool ReadDword(HKEY hKey, const WCHAR* pwszSubkey, const WCHAR* pwszValue, DWORD& dwOut)
@@ -453,6 +477,8 @@ namespace InterruptAffinityPolicy
 			}
 			device.strClass = Detail::GetStringProperty(hDevInfo, devInfo, SPDRP_CLASS);
 			device.strLocation = Detail::GetStringProperty(hDevInfo, devInfo, SPDRP_LOCATION_INFORMATION);
+			device.nInterruptSupport = Detail::GetDevNodeUInt32(devInfo.DevInst, Detail::PciInterruptSupportKey);
+			device.nMessageMaximum = Detail::GetDevNodeUInt32(devInfo.DevInst, Detail::PciInterruptMessageMaximumKey);
 			HKEY hKey = SetupDiOpenDevRegKey(hDevInfo, &devInfo, DICS_FLAG_GLOBAL, 0, DIREG_DEV, KEY_READ);
 			if (INVALID_HANDLE_VALUE != hKey)
 			{
