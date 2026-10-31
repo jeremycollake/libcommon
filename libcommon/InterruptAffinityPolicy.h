@@ -125,6 +125,10 @@ namespace InterruptAffinityPolicy
 		// what a PCI device supports, as its bus driver reports it; 0 when not reported (non-PCI devices)
 		DWORD nInterruptSupport = 0;	// InterruptSupport* bits
 		DWORD nMessageMaximum = 0;		// the most MSI / MSI-X messages it can use
+		// PCI base class and subclass (0x0403 for an HD Audio controller); NoPciClassCode for non-PCI devices. Tells
+		// what a device is when its setup class does not (HD Audio controllers are in the System class).
+		DWORD nPciClassCode = NoPciClassCode;
+		static const DWORD NoPciClassCode = 0xFFFFFFFF;
 		// names of the devices attached below this one (disks, USB devices, audio endpoints), in device tree order with
 		// repeats kept; filled by FillConnectedDevices, not Enumerate
 		std::vector<std::wstring> vConnected;
@@ -232,6 +236,27 @@ namespace InterruptAffinityPolicy
 			DEVPROPTYPE propType = 0;
 			ULONG nSize = sizeof(dwValue);
 			return (CR_SUCCESS == CM_Get_DevNode_PropertyW(devInst, &key, &propType, reinterpret_cast<PBYTE>(&dwValue), &nSize, 0) && DEVPROP_TYPE_UINT32 == propType) ? dwValue : 0;
+		}
+
+		// the base class and subclass from a PCI compatible id ("PCI\CC_0403..." -> 0x0403)
+		inline DWORD GetPciClassCode(HDEVINFO hDevInfo, SP_DEVINFO_DATA& devInfo)
+		{
+			WCHAR wszIds[2048] = {};
+			DWORD dwType = 0;
+			if (!SetupDiGetDeviceRegistryPropertyW(hDevInfo, &devInfo, SPDRP_COMPATIBLEIDS, &dwType, reinterpret_cast<PBYTE>(wszIds), sizeof(wszIds) - 2 * sizeof(WCHAR), nullptr)
+				|| REG_MULTI_SZ != dwType)
+			{
+				return Device::NoPciClassCode;
+			}
+			for (const WCHAR* pwsz = wszIds; *pwsz; pwsz += wcslen(pwsz) + 1)
+			{
+				if (0 == _wcsnicmp(pwsz, L"PCI\\CC_", 7) && wcslen(pwsz) >= 11 && iswxdigit(pwsz[7]) && iswxdigit(pwsz[8]) && iswxdigit(pwsz[9]) && iswxdigit(pwsz[10]))
+				{
+					const WCHAR wszCode[] = { pwsz[7], pwsz[8], pwsz[9], pwsz[10], 0 };
+					return wcstoul(wszCode, nullptr, 16);
+				}
+			}
+			return Device::NoPciClassCode;
 		}
 
 		inline bool ReadDword(HKEY hKey, const WCHAR* pwszSubkey, const WCHAR* pwszValue, DWORD& dwOut)
@@ -479,6 +504,10 @@ namespace InterruptAffinityPolicy
 			device.strLocation = Detail::GetStringProperty(hDevInfo, devInfo, SPDRP_LOCATION_INFORMATION);
 			device.nInterruptSupport = Detail::GetDevNodeUInt32(devInfo.DevInst, Detail::PciInterruptSupportKey);
 			device.nMessageMaximum = Detail::GetDevNodeUInt32(devInfo.DevInst, Detail::PciInterruptMessageMaximumKey);
+			if (0 == _wcsnicmp(wszInstanceId, L"PCI\\", 4))
+			{
+				device.nPciClassCode = Detail::GetPciClassCode(hDevInfo, devInfo);
+			}
 			HKEY hKey = SetupDiOpenDevRegKey(hDevInfo, &devInfo, DICS_FLAG_GLOBAL, 0, DIREG_DEV, KEY_READ);
 			if (INVALID_HANDLE_VALUE != hKey)
 			{
