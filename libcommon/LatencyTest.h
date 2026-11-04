@@ -90,6 +90,28 @@ namespace LatencyTest
 
 	enum Verdict { VerdictUnknown, VerdictGood, VerdictWarning, VerdictBad };
 
+	// diagnostics: a module's ISRs and DPCs by PerfInfo opcode (pltests -latmon), e.g. line-based vs MSI ISRs
+	enum ExecutionOpcode { ExecutionOpcodeIsr, ExecutionOpcodeIsrMsi, ExecutionOpcodeDpc, ExecutionOpcodeThreadedDpc, ExecutionOpcodeTimerDpc, ExecutionOpcodeCount };
+
+	inline int GetExecutionOpcode(const UCHAR nOpcode)
+	{
+		switch (nOpcode)
+		{
+		case OpcodeIsr: return ExecutionOpcodeIsr;
+		case OpcodeIsrMsi: return ExecutionOpcodeIsrMsi;
+		case OpcodeDpc: return ExecutionOpcodeDpc;
+		case OpcodeThreadedDpc: return ExecutionOpcodeThreadedDpc;
+		case OpcodeTimerDpc: return ExecutionOpcodeTimerDpc;
+		default: return -1;
+		}
+	}
+
+	struct OpcodeStats
+	{
+		ULONGLONG nCount[ExecutionOpcodeCount] = {};
+		ULONGLONG nMaxTicks[ExecutionOpcodeCount] = {};
+	};
+
 	enum StartResult
 	{
 		StartOK,
@@ -160,6 +182,7 @@ namespace LatencyTest
 		ULONGLONG nSize = 0;
 		ExecutionStats isr;
 		ExecutionStats dpc;
+		OpcodeStats opcodes;
 	};
 
 	struct CPUStats
@@ -709,10 +732,12 @@ namespace LatencyTest
 			{
 				module.isr = ExecutionStats();
 				module.dpc = ExecutionStats();
+				module.opcodes = OpcodeStats();
 			}
 			m_vRetiredModules.clear();
 			m_unknownModule.isr = ExecutionStats();
 			m_unknownModule.dpc = ExecutionStats();
+			m_unknownModule.opcodes = OpcodeStats();
 			m_vCPUs.clear();
 			m_nested.Clear();
 			m_mapProcesses.clear();
@@ -1003,12 +1028,12 @@ namespace LatencyTest
 			if (IsEqualGUID(pEvent->EventHeader.ProviderId, PerfInfoGuid))
 			{
 				InterlockedIncrement64(reinterpret_cast<volatile LONG64*>(&m_perfInfoOpcodes[nOpcode]));
-				const bool bIsr = OpcodeIsr == nOpcode || OpcodeIsrMsi == nOpcode;
-				const bool bDpc = OpcodeDpc == nOpcode || OpcodeThreadedDpc == nOpcode || OpcodeTimerDpc == nOpcode;
-				if (!bIsr && !bDpc)
+				const int nExecutionOpcode = GetExecutionOpcode(nOpcode);
+				if (nExecutionOpcode < 0)
 				{
 					return;
 				}
+				const bool bIsr = ExecutionOpcodeIsr == nExecutionOpcode || ExecutionOpcodeIsrMsi == nExecutionOpcode;
 				// InitialTime (8 bytes), Routine (pointer) lead every ISR and DPC class
 				const size_t nPointer = GetPointerSize(pEvent);
 				if (pEvent->UserDataLength < 8 + nPointer)
@@ -1024,7 +1049,7 @@ namespace LatencyTest
 				{
 					return;	// clock mismatch or garbage; a real ISR/DPC never runs for a second
 				}
-				OnExecution(bIsr, nRoutine, nEnd - nInitialTime, nEnd, GetProcessorIndex(pEvent));
+				OnExecution(bIsr, nExecutionOpcode, nRoutine, nEnd - nInitialTime, nEnd, GetProcessorIndex(pEvent));
 			}
 			else if (IsEqualGUID(pEvent->EventHeader.ProviderId, PageFaultGuid) && OpcodeHardFault == nOpcode)
 			{
@@ -1098,6 +1123,7 @@ namespace LatencyTest
 					{
 						stats.isr = old.isr;
 						stats.dpc = old.dpc;
+						stats.opcodes = old.opcodes;
 						break;
 					}
 				}
@@ -1192,7 +1218,7 @@ namespace LatencyTest
 			return &m_dqHistory[static_cast<size_t>(nSecond - m_nHistoryFirstSecond)];
 		}
 
-		void OnExecution(const bool bIsr, const ULONGLONG nRoutine, ULONGLONG nTicks, const ULONGLONG nTime, const USHORT nProcessor)
+		void OnExecution(const bool bIsr, const int nExecutionOpcode, const ULONGLONG nRoutine, ULONGLONG nTicks, const ULONGLONG nTime, const USHORT nProcessor)
 		{
 			bool bUnknown = false;
 			{
@@ -1203,6 +1229,8 @@ namespace LatencyTest
 				ModuleStats& module = nModule >= 0 ? m_vModuleStats[nModule] : m_unknownModule;
 				bUnknown = nModule < 0;
 				CPUStats& cpu = GetCPU(nProcessor);
+				module.opcodes.nCount[nExecutionOpcode]++;
+				module.opcodes.nMaxTicks[nExecutionOpcode] = (std::max)(module.opcodes.nMaxTicks[nExecutionOpcode], nTicks);
 				if (bIsr)
 				{
 					module.isr.Add(nTicks, m_nTicksPerUs, m_nWarningTicks, m_nBadTicks);
