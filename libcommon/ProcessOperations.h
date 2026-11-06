@@ -59,6 +59,10 @@ public:
 	size_t GetProcessProcessorGroups(const unsigned long pid, std::vector<USHORT>& vGroups);
 	bool IsMultiGroupProcess(const unsigned long pid);
 	bool SetGroupAffinityForAllThreads(const unsigned long pid, const int group, const unsigned long long bitMask);
+	// true if every thread we can query is in this group with exactly this mask (false if none could be queried)
+	bool AreAllThreadsInGroupAffinity(const unsigned long pid, const int group, const unsigned long long bitMask);
+	// AND a mask with the CPUs the group has ('all' becomes the group's CPUs); 0 if the group doesn't exist
+	static unsigned long long LimitAffinityToGroup(const int group, const unsigned long long bitMask);
 
 	bool SetPriorityBoost(const unsigned long pid, const bool bPriorityBoostEnabled);
 	unsigned long GetPriorityClass(const unsigned long pid);

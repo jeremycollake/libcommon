@@ -58,19 +58,80 @@ bool ProcessOperations::SetAffinityMask(const unsigned long pid, const unsigned 
 	}
 	else
 	{
-		// if process is multi-group, first try to move its threads to the target group
-		if (IsMultiGroupProcess(pid))
+		// only the CPUs this group has ('all' is every mask bit, more than a group of < 64 CPUs has)
+		const unsigned long long groupMask = LimitAffinityToGroup(group, bitMask);
+		if (0 == groupMask)
 		{
-			SetGroupAffinityForAllThreads(pid, group, bitMask);
+			// no such group, or none of the named CPUs are in it
+			LIBCOMMON_DEBUG_PRINT(L"ERROR: Affinity %d/%llx names no CPU this system has", group, bitMask);
+			bR = false;
 		}
-		// must call SetProcessGroupAffinity as well to change default group (not that it works for new threads)
-		// use NT native API to set group and affinity
-		bR = SetProcessGroupAffinity(pid, group, bitMask);
-		// backup safety, unnecessary
-		::SetProcessAffinityMask(hProcess, bitMask);
+		else if (GetActiveProcessorGroupCount() < 2)
+		{
+			// one group (it must be group 0 to get here): the standard API does it all
+			bR = ::SetProcessAffinityMask(hProcess, static_cast<DWORD_PTR>(groupMask)) ? true : false;
+		}
+		else
+		{
+			// set the default group and affinity (used for new threads) with the NT native API
+			const bool bProcessSet = SetProcessGroupAffinity(pid, group, groupMask);
+			// then move every existing thread: changing the default group moves only one thread,
+			// and a multi-group process has threads in several groups
+			const bool bThreadsSet = SetGroupAffinityForAllThreads(pid, group, groupMask);
+			bR = bProcessSet || bThreadsSet;
+		}
 	}
 	CloseHandle(hProcess);
 	return bR;
+}
+
+unsigned long long ProcessOperations::LimitAffinityToGroup(const int group, const unsigned long long bitMask)
+{
+	if (group < 0 || group >= static_cast<int>(GetActiveProcessorGroupCount()))
+	{
+		return 0;
+	}
+	const DWORD nCPUsInGroup = GetActiveProcessorCount(static_cast<WORD>(group));
+	const unsigned long long validMask = (nCPUsInGroup >= 64) ? ~0ULL : ((1ULL << nCPUsInGroup) - 1);
+	return bitMask & validMask;
+}
+
+bool ProcessOperations::AreAllThreadsInGroupAffinity(const unsigned long pid, const int group, const unsigned long long bitMask)
+{
+	HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+	if (hSnapshot == INVALID_HANDLE_VALUE)
+	{
+		return false;
+	}
+	bool bAnyQueried = false;
+	bool bAllMatch = true;
+	THREADENTRY32 te32;
+	te32.dwSize = sizeof(THREADENTRY32);
+	if (Thread32First(hSnapshot, &te32))
+	{
+		do
+		{
+			if (te32.th32OwnerProcessID == pid)
+			{
+				HANDLE hThread = OpenThread(THREAD_QUERY_LIMITED_INFORMATION, FALSE, te32.th32ThreadID);
+				if (hThread)
+				{
+					GROUP_AFFINITY groupAff = {};
+					if (GetThreadGroupAffinity(hThread, &groupAff))
+					{
+						bAnyQueried = true;
+						if (groupAff.Group != group || groupAff.Mask != bitMask)
+						{
+							bAllMatch = false;
+						}
+					}
+					CloseHandle(hThread);
+				}
+			}
+		} while (bAllMatch && Thread32Next(hSnapshot, &te32));
+	}
+	CloseHandle(hSnapshot);
+	return bAnyQueried && bAllMatch;
 }
 
 bool ProcessOperations::SetGroupAffinityForAllThreads(const unsigned long pid, const int group, const unsigned long long bitMask)
@@ -83,7 +144,7 @@ bool ProcessOperations::SetGroupAffinityForAllThreads(const unsigned long pid, c
 		return false;
 	}
 
-	bool bR = true;
+	bool bR = false;	// true once any thread of the process is set
 	THREADENTRY32 te32;
 	te32.dwSize = sizeof(THREADENTRY32);
 	if (!Thread32First(hSnapshot, &te32))
